@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}在线交易 - myQuant{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">在线交易</h1>
+    <p class="text-gray-500 mt-1">查看交易信号、手动下单、监控订单状态</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div>
+        <div class="bg-white rounded-lg shadow p-4 mb-4">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">交易信号</h2>
+            <div id="signal-list" hx-get="/api/signals" hx-trigger="load, every 30s" hx-target="this">
+                <p class="text-gray-400 text-sm">加载中...</p>
+            </div>
+        </div>
+    </div>
+    <div>
+        <div class="bg-white rounded-lg shadow p-4 mb-4">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">手动下单</h2>
+            <form hx-post="/api/orders" hx-target="#order-result" class="space-y-3">
+                <input name="stock_code" placeholder="股票代码 (如 000001.SZ)" required
+                       class="w-full border rounded px-3 py-2 text-sm">
+                <div class="flex gap-2">
+                    <select name="order_type" class="border rounded px-3 py-2 text-sm">
+                        <option value="BUY">买入</option>
+                        <option value="SELL">卖出</option>
+                    </select>
+                    <input name="price" type="number" step="0.01" placeholder="价格" required
+                           class="border rounded px-3 py-2 text-sm flex-1">
+                    <input name="quantity" type="number" step="100" placeholder="数量" required
+                           class="border rounded px-3 py-2 text-sm flex-1">
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    提交订单
+                </button>
+            </form>
+            <div id="order-result" class="mt-3"></div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">订单列表</h2>
+            <div id="order-list" hx-get="/api/orders" hx-trigger="load, every 30s" hx-target="this">
+                <p class="text-gray-400 text-sm">加载中...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

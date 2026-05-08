@@ -1,0 +1,36 @@
+<div class="space-y-4">
+    <h3 class="text-lg font-semibold text-gray-700">
+        {{ stock.stock_name }} 基本面信息
+    </h3>
+
+    {% if valuation %}
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="p-3 bg-gray-50 rounded">
+            <div class="text-xs text-gray-400">市盈率 (PE)</div>
+            <div class="text-lg font-medium">{{ valuation.pe_ratio or '--' }}</div>
+        </div>
+        <div class="p-3 bg-gray-50 rounded">
+            <div class="text-xs text-gray-400">市净率 (PB)</div>
+            <div class="text-lg font-medium">{{ valuation.pb_ratio or '--' }}</div>
+        </div>
+        <div class="p-3 bg-gray-50 rounded">
+            <div class="text-xs text-gray-400">总市值 (亿)</div>
+            <div class="text-lg font-medium">{{ valuation.market_cap or '--' }}</div>
+        </div>
+        <div class="p-3 bg-gray-50 rounded">
+            <div class="text-xs text-gray-400">每股收益 (EPS)</div>
+            <div class="text-lg font-medium">{{ valuation.eps or '--' }}</div>
+        </div>
+        <div class="p-3 bg-gray-50 rounded">
+            <div class="text-xs text-gray-400">52周最高</div>
+            <div class="text-lg font-medium">{{ valuation.high_52w or '--' }}</div>
+        </div>
+        <div class="p-3 bg-gray-50 rounded">
+            <div class="text-xs text-gray-400">52周最低</div>
+            <div class="text-lg font-medium">{{ valuation.low_52w or '--' }}</div>
+        </div>
+    </div>
+    {% else %}
+    <p class="text-gray-400 text-sm">暂无基本面数据</p>
+    {% endif %}
+</div>

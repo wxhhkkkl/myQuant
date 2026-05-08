@@ -1,0 +1,36 @@
+<div class="space-y-4">
+    <h3 class="text-lg font-semibold text-gray-700">财务报表</h3>
+
+    {% if reports %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b text-left text-gray-400">
+                    <th class="py-2 pr-4">报告期</th>
+                    <th class="py-2 pr-4">类型</th>
+                    <th class="py-2 pr-4 text-right">营收(亿)</th>
+                    <th class="py-2 pr-4 text-right">净利润(亿)</th>
+                    <th class="py-2 pr-4 text-right">ROE(%)</th>
+                    <th class="py-2 pr-4 text-right">负债率(%)</th>
+                    <th class="py-2 pr-4 text-right">EPS</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reports %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-2 pr-4">{{ r.report_period }}</td>
+                    <td class="py-2 pr-4">{{ r.report_type or '--' }}</td>
+                    <td class="py-2 pr-4 text-right">{{ r.revenue or '--' }}</td>
+                    <td class="py-2 pr-4 text-right">{{ r.net_profit or '--' }}</td>
+                    <td class="py-2 pr-4 text-right">{{ r.roe or '--' }}</td>
+                    <td class="py-2 pr-4 text-right">{{ r.debt_ratio or '--' }}</td>
+                    <td class="py-2 pr-4 text-right">{{ r.eps or '--' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-gray-400 text-sm">暂无财务数据</p>
+    {% endif %}
+</div>

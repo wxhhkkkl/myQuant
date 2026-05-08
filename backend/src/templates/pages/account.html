@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}账户监控 - myQuant{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">账户监控</h1>
+    <p class="text-gray-500 mt-1">持仓明细与收益曲线</p>
+</div>
+
+<div class="mb-6" id="account-overview"
+     hx-get="/api/account/overview" hx-trigger="load, every 30s" hx-target="this">
+    <p class="text-gray-400 text-sm">加载中...</p>
+</div>
+
+<div class="bg-white rounded-lg shadow p-4 mb-6">
+    <h2 class="text-lg font-semibold text-gray-700 mb-3">收益曲线</h2>
+    <div id="equity-chart" style="height: 300px;"></div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-4">
+    <h2 class="text-lg font-semibold text-gray-700 mb-3">持仓明细</h2>
+    <div id="position-list"
+         hx-get="/api/account/positions" hx-trigger="load, every 30s" hx-target="this">
+        <p class="text-gray-400 text-sm">加载中...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+fetch('/api/account/curve')
+    .then(r => r.json())
+    .then(data => {
+        if (!data.length) return;
+        var chart = echarts.init(document.getElementById('equity-chart'));
+        chart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: { type: 'category', data: data.map(d => d.date) },
+            yAxis: { type: 'value' },
+            series: [{
+                type: 'line', data: data.map(d => d.value),
+                smooth: true, lineStyle: { color: '#3b82f6' },
+                areaStyle: { color: 'rgba(59,130,246,0.1)' },
+            }]
+        });
+    });
+</script>
+{% endblock %}

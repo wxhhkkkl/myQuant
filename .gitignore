@@ -1,14 +1,38 @@
 # Python
 __pycache__/
 *.py[cod]
-*.pyc
+*.egg-info/
+dist/
+.venv/
+venv/
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+
+# SQLite
+*.db
+*.db-journal
+*.db-wal
+
+# Tailwind
+frontend/static/css/output.css
+
+# Environment
+.env
+.env.local
 
 # IDE
 .vscode/
 .idea/
 
-# Local config
-.claude/settings.local.json
+# OS
+.DS_Store
+Thumbs.db
 
-# Database
-*.db
+# Logs
+*.log
+
+# Data files (local cache)
+backend/data/*.duckdb
+backend/data/*.db

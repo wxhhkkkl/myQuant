@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}myQuant - 量化交易平台{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script>
+        document.body.addEventListener('htmx:responseError', function(evt) {
+            var target = evt.detail.target;
+            target.innerHTML = '<div class="text-red-500 text-sm p-2">加载失败，请稍后重试</div>';
+        });
+    </script>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 flex items-center h-14 gap-6">
+            <a href="/stocks" class="font-bold text-lg text-blue-600">myQuant</a>
+            <a href="/stocks" class="text-sm text-gray-600 hover:text-blue-600">AI选股</a>
+            <a href="/models" class="text-sm text-gray-600 hover:text-blue-600">量化模型</a>
+            <a href="/backtest" class="text-sm text-gray-600 hover:text-blue-600">回测</a>
+            <a href="/trading" class="text-sm text-gray-600 hover:text-blue-600">交易</a>
+            <a href="/account" class="text-sm text-gray-600 hover:text-blue-600">账户</a>
+        </div>
+    </nav>
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

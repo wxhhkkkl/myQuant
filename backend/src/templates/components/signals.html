@@ -1,0 +1,36 @@
+{% if signals %}
+<ul class="divide-y">
+    {% for s in signals %}
+    <li class="py-3 flex items-center justify-between">
+        <div>
+            <span class="font-mono font-semibold text-sm">{{ s.stock_code }}</span>
+            <span class="ml-2 px-2 py-0.5 text-xs rounded-full
+                {% if s.signal_type == 'BUY' %}bg-red-100 text-red-700
+                {% else %}bg-green-100 text-green-700{% endif %}">
+                {{ s.signal_type }}
+            </span>
+            <span class="text-gray-500 text-xs ml-1">{{ "%.2f"|format(s.signal_price) }}</span>
+            <div class="text-gray-400 text-xs mt-0.5">{{ s.signal_reason or '' }}</div>
+        </div>
+        <div class="flex gap-1">
+            {% if not s.is_confirmed %}
+            <button hx-post="/api/signals/{{ s.id }}/confirm"
+                    hx-target="closest li" hx-swap="outerHTML"
+                    class="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">
+                确认
+            </button>
+            <button hx-post="/api/signals/{{ s.id }}/dismiss"
+                    hx-target="closest li" hx-swap="outerHTML"
+                    class="text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-400">
+                忽略
+            </button>
+            {% else %}
+            <span class="text-xs text-green-600 font-medium">已确认</span>
+            {% endif %}
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="text-gray-400 text-sm py-4">暂无交易信号</p>
+{% endif %}

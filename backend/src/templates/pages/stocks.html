@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}AI选股 - myQuant{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">AI选股</h1>
+    <p class="text-gray-500 mt-1">搜索股票代码或名称，或使用AI智能选股</p>
+</div>
+
+<div class="mb-6 flex gap-4">
+    <input
+        type="text"
+        name="q"
+        placeholder="输入股票代码或名称..."
+        class="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        hx-get="/api/stocks/search"
+        hx-trigger="keyup changed delay:300ms"
+        hx-target="#search-results"
+        hx-indicator="#search-spinner"
+    >
+    <button
+        class="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+        hx-post="/api/stocks/ai-picks"
+        hx-target="#ai-picks-results"
+        hx-indicator="#ai-spinner"
+    >
+        AI选股
+    </button>
+</div>
+
+<div id="ai-spinner" class="htmx-indicator text-sm text-gray-400 mb-4">AI分析中...</div>
+<div id="ai-picks-results" class="mb-8"></div>
+
+<div id="search-spinner" class="htmx-indicator text-sm text-gray-400 mb-4">搜索中...</div>
+<div id="search-results" class="grid gap-2"></div>
+{% endblock %}

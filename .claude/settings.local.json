@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh-keygen -t ed25519 -C \"myquant-github\" -f ~/.ssh/id_ed25519 -N \"\")",
+      "Bash(git config *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(ssh -T git@github.com)",
+      "Bash(ssh -vT git@github.com)",
+      "Bash(git commit *)"
+    ]
+  }
+}

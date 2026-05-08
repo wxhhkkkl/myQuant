@@ -1,0 +1,29 @@
+<div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-gray-500 text-xs">总资产</div>
+            <div class="text-xl font-bold text-gray-800">
+                {{ "%.2f"|format(overview.total_asset) }}
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-gray-500 text-xs">可用资金</div>
+            <div class="text-xl font-bold text-gray-800">
+                {{ "%.2f"|format(overview.available_cash) }}
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-gray-500 text-xs">持仓市值</div>
+            <div class="text-xl font-bold text-gray-800">
+                {{ "%.2f"|format(overview.market_value) }}
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-gray-500 text-xs">累计盈亏</div>
+            <div class="text-xl font-bold {% if overview.total_pnl >= 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                {{ "%+.2f"|format(overview.total_pnl) }}
+            </div>
+        </div>
+    </div>
+    <p class="text-gray-300 text-xs mt-2">数据更新于 {{ last_updated or '--' }}</p>
+</div>
