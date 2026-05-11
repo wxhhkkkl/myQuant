@@ -6,7 +6,14 @@ from backend.src.config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+    return _client
 
 
 def build_prompt(stocks: list) -> str:
@@ -63,7 +70,7 @@ def call_deepseek(stocks: list) -> list:
 
     prompt = build_prompt(stocks)
     try:
-        response = client.chat.completions.create(
+        response = _get_client().chat.completions.create(
             model="deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,

@@ -1,0 +1,64 @@
+<div class="bg-white rounded-lg border p-4"
+     hx-get="/stocks/{{ code }}/quote-view"
+     hx-trigger="load"
+     id="quote-panel-{{ code }}">
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-medium text-gray-600">行情数据</h3>
+        <button class="text-xs text-blue-600 hover:text-blue-800"
+            hx-get="/stocks/{{ code }}/quote-view"
+            hx-target="#quote-panel-{{ code }}">
+            刷新
+        </button>
+    </div>
+    <div class="text-center mb-3">
+        <div class="text-2xl font-bold {% if quote.latest_price is not none and quote.change_pct is not none %}{% if quote.change_pct > 0 %}text-red-600{% elif quote.change_pct < 0 %}text-green-600{% endif %}{% endif %}">
+            {% if quote.latest_price is not none %}
+                {{ "%.2f"|format(quote.latest_price) }}
+            {% else %}
+                -
+            {% endif %}
+        </div>
+        <div class="text-sm mt-1
+            {% if quote.change_pct is not none %}
+                {% if quote.change_pct > 0 %}text-red-600{% elif quote.change_pct < 0 %}text-green-600{% endif %}
+            {% endif %}">
+            {% if quote.change_pct is not none %}
+                {{ "%+.2f%%"|format(quote.change_pct) }}
+            {% endif %}
+            {% if quote.change_amount is not none %}
+                &nbsp;{{ "%+.2f"|format(quote.change_amount) }}
+            {% endif %}
+        </div>
+    </div>
+    {% if quote.trade_date and now and quote.trade_date < now %}
+    <div class="mb-3 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        当前为非交易日，数据更新至 {{ quote.trade_date }}
+    </div>
+    {% endif %}
+    <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+        <div class="flex justify-between">
+            <span class="text-gray-500">开盘价</span>
+            <span class="font-mono">{% if quote.open is not none %}{{ "%.2f"|format(quote.open) }}{% else %}-{% endif %}</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-gray-500">昨收价</span>
+            <span class="font-mono">{% if quote.pre_close is not none %}{{ "%.2f"|format(quote.pre_close) }}{% else %}-{% endif %}</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-gray-500">最高价</span>
+            <span class="font-mono">{% if quote.high is not none %}{{ "%.2f"|format(quote.high) }}{% else %}-{% endif %}</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-gray-500">最低价</span>
+            <span class="font-mono">{% if quote.low is not none %}{{ "%.2f"|format(quote.low) }}{% else %}-{% endif %}</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-gray-500">成交量</span>
+            <span class="font-mono">{% if quote.volume is not none %}{{ "%.0f"|format(quote.volume) }}{% else %}-{% endif %}</span>
+        </div>
+        <div class="flex justify-between">
+            <span class="text-gray-500">成交额</span>
+            <span class="font-mono">{% if quote.amount is not none %}{{ "%.0f"|format(quote.amount) }}{% else %}-{% endif %}</span>
+        </div>
+    </div>
+</div>

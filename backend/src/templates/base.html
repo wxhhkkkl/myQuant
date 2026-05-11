@@ -25,6 +25,15 @@
             <a href="/backtest" class="text-sm text-gray-600 hover:text-blue-600">回测</a>
             <a href="/trading" class="text-sm text-gray-600 hover:text-blue-600">交易</a>
             <a href="/account" class="text-sm text-gray-600 hover:text-blue-600">账户</a>
+            <span class="ml-auto text-xs px-2 py-1 rounded-full font-medium
+                {% if MYQUANT_ENV == 'prod' %}
+                    bg-red-100 text-red-700
+                {% else %}
+                    bg-green-100 text-green-700
+                {% endif %}
+            ">
+                {% if MYQUANT_ENV == 'prod' %}正式{% else %}模拟{% endif %}
+            </span>
         </div>
     </nav>
     <main class="max-w-7xl mx-auto px-4 py-6">

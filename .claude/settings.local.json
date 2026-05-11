@@ -6,7 +6,19 @@
       "Bash(echo \"exit: $?\")",
       "Bash(ssh -T git@github.com)",
       "Bash(ssh -vT git@github.com)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(python -c \"import sys; print\\('\\\\n'.join\\(sys.path\\)\\)\")",
+      "Bash(ls -d /d/QMT*)",
+      "Bash(ls -d /c/QMT*)",
+      "Bash(ls -la D:/ | grep -i qmt || echo \"No QMT in D:/ root\")",
+      "Read(//d//**)",
+      "Bash(python -c ' *)",
+      "Bash(ls -d /c/Python311*)",
+      "Read(//c/Users/**)",
+      "Bash(where python3.11)",
+      "Bash(where python311 *)",
+      "Bash(.venv/Scripts/python.exe --version)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \".specify/extensions/git/scripts/powershell/create-new-feature.ps1\" -Json -ShortName \"stock-list\" \"增加一个模块叫个股列表，其中有自选股，完后有更新所有个股基础信息的功能；点击每个股票有个人自己的详情，可以看到K线图和行情信息\")"
     ]
   }
 }

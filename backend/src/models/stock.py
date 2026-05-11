@@ -64,3 +64,32 @@ class Stock:
                 "SELECT * FROM stocks WHERE is_active = 1"
             ).fetchall()
         return [dict(r) for r in rows]
+
+    @staticmethod
+    def count_all(keyword: str = '', watchlist_only: bool = False) -> int:
+        with get_db() as conn:
+            where = ["is_active = 1"]
+            params = []
+            if keyword:
+                where.append("(stock_code LIKE ? OR stock_name LIKE ?)")
+                params.extend([f"%{keyword}%", f"%{keyword}%"])
+            if watchlist_only:
+                where.append("stock_code IN (SELECT stock_code FROM watchlist)")
+            sql = f"SELECT COUNT(*) FROM stocks WHERE {' AND '.join(where)}"
+            return conn.execute(sql, params).fetchone()[0]
+
+    @staticmethod
+    def list_paginated(page: int = 1, per_page: int = 50,
+                       keyword: str = '', watchlist_only: bool = False) -> list:
+        with get_db() as conn:
+            where = ["is_active = 1"]
+            params = []
+            if keyword:
+                where.append("(stock_code LIKE ? OR stock_name LIKE ?)")
+                params.extend([f"%{keyword}%", f"%{keyword}%"])
+            if watchlist_only:
+                where.append("stock_code IN (SELECT stock_code FROM watchlist)")
+            offset = (page - 1) * per_page
+            sql = f"SELECT * FROM stocks WHERE {' AND '.join(where)} ORDER BY stock_code LIMIT ? OFFSET ?"
+            rows = conn.execute(sql, params + [per_page, offset]).fetchall()
+            return [dict(r) for r in rows]

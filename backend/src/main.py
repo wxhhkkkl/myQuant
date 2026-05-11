@@ -33,10 +33,32 @@ async def lifespan(app: FastAPI):
     run_migrations()
     init_schema()
     _seed_models()
+    _connect_qmt()
     start_scheduler()
     yield
     stop_scheduler()
+    _disconnect_qmt()
     logger.info("myQuant stopped.")
+
+
+def _connect_qmt():
+    try:
+        from backend.src.services.qmt_connector import get_connector
+        conn = get_connector()
+        if conn.connect():
+            logger.info("QMT connected")
+        else:
+            logger.warning("QMT not available — trading features disabled")
+    except Exception:
+        logger.warning("QMT connection failed", exc_info=True)
+
+
+def _disconnect_qmt():
+    try:
+        from backend.src.services.qmt_connector import get_connector
+        get_connector().disconnect()
+    except Exception:
+        pass
 
 
 app = FastAPI(title="myQuant", version="0.1.0", lifespan=lifespan)
@@ -54,6 +76,7 @@ from backend.src.api.models import router as models_router
 from backend.src.api.backtest import router as backtest_router
 from backend.src.api.trading import router as trading_router
 from backend.src.api.account import router as account_router
+from backend.src.api.data import router as data_router
 
 app.include_router(stocks_router)
 app.include_router(watchlist_router)
@@ -61,6 +84,7 @@ app.include_router(models_router)
 app.include_router(backtest_router)
 app.include_router(trading_router)
 app.include_router(account_router)
+app.include_router(data_router)
 
 
 @app.get("/")

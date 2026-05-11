@@ -10,19 +10,28 @@ logger = logging.getLogger(__name__)
 
 
 def init_stock_list():
-    """Download stock list from xtdata and populate stocks table."""
+    """Download stock list and populate stocks table."""
     from backend.src.models.stock import Stock
-    from backend.src.services.data_service import HAS_XTDATA
+    from backend.src.services.data_service import HAS_XTDATA, HAS_AKSHARE
 
-    if not HAS_XTDATA:
-        logger.warning("xtquant not available; skipping stock list download.")
-        return
-
-    from xtquant import xtdata
     Stock.create_table()
 
-    # Download A-share stock list from xtdata
-    a_list = xtdata.get_stock_list_in_sector("沪深A股")
+    # Use akshare as primary source; xtdata get_stock_list_in_sector
+    # can block indefinitely on first run.
+    if HAS_AKSHARE:
+        try:
+            logger.info("Fetching stock list from akshare...")
+            _save_stocks_from_akshare()
+            return
+        except Exception as e:
+            logger.warning(f"akshare stock list failed: {e}")
+
+    logger.warning("No data source available for stock list.")
+
+
+def _save_stocks_from_xtdata(a_list):
+    from backend.src.models.stock import Stock
+    from xtquant import xtdata
     count = 0
     for code in a_list:
         try:
@@ -39,6 +48,42 @@ def init_stock_list():
             logger.warning(f"Failed to upsert {code}: {e}")
 
     logger.info(f"Initialized {count} stocks.")
+
+
+def _save_stocks_from_akshare():
+    """Fallback: fetch A-share list from akshare."""
+    from backend.src.db.sqlite import get_db
+    import akshare as ak
+
+    df = ak.stock_zh_a_spot_em()
+    rows = []
+    for _, row in df.iterrows():
+        code = str(row.get("代码", "")).strip()
+        name = str(row.get("名称", "")).strip()
+        if not code or not name:
+            continue
+        exchange = "SH" if code.startswith("6") else "SZ"
+        rows.append((code, name, exchange, "", ""))
+
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS stocks (
+                stock_code VARCHAR(10) PRIMARY KEY,
+                stock_name VARCHAR(50),
+                exchange VARCHAR(10),
+                industry VARCHAR(50),
+                sub_industry VARCHAR(50),
+                is_active INTEGER DEFAULT 1
+            )
+        """)
+        conn.executemany("""
+            INSERT INTO stocks (stock_code, stock_name, exchange, industry, sub_industry)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(stock_code) DO UPDATE SET
+                stock_name = excluded.stock_name,
+                exchange = excluded.exchange
+        """, rows)
+    logger.info(f"Initialized {len(rows)} stocks from akshare.")
 
 
 def init_sectors():

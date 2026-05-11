@@ -2,12 +2,28 @@
 {% block title %}{{ stock.stock_name }}({{ stock.stock_code }}) - myQuant{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <a href="/stocks" class="text-sm text-blue-600 hover:underline">&larr; 返回搜索</a>
-    <h1 class="text-2xl font-bold text-gray-800 mt-2">
+<div class="mb-4">
+    <a href="/stocks" class="text-sm text-blue-600 hover:underline">&larr; 返回个股列表</a>
+    <h1 class="text-2xl font-bold text-gray-800 mt-1">
         {{ stock.stock_name }}
         <span class="text-lg text-gray-400 font-normal">{{ stock.stock_code }}</span>
     </h1>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+    <div class="lg:col-span-3 bg-white rounded-lg border p-4">
+        {% set code = stock.stock_code %}
+        {% include "components/stock_kline.html" %}
+    </div>
+    <div class="lg:col-span-1">
+        <div hx-get="/stocks/{{ stock.stock_code }}/quote-view"
+             hx-trigger="load"
+             hx-indicator="#quote-loading">
+            <div id="quote-loading" class="htmx-indicator bg-white rounded-lg border p-4 text-center text-sm text-gray-400">
+                加载行情...
+            </div>
+        </div>
+    </div>
 </div>
 
 <div x-data="{ tab: 'fundamentals' }">
@@ -24,7 +40,7 @@
         {% endfor %}
     </nav>
 
-    <div id="tab-content" class="bg-white rounded-lg border p-6 min-h-[300px]">
+    <div id="tab-content" class="bg-white rounded-lg border p-6 min-h-[200px]">
         <div class="text-gray-400 text-sm">选择上方标签加载数据</div>
     </div>
 </div>

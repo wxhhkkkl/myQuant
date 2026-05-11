@@ -44,19 +44,19 @@ def sync_positions_from_qmt(connector) -> list:
         return []
 
     try:
-        qmt_positions = connector.trader.query_positions()
+        qmt_positions = connector.query_positions()
         for pos in qmt_positions:
             pnl, pnl_pct = calc_position_pnl(
-                avg_cost=pos.get("avg_cost", 0),
-                current_price=pos.get("current_price", 0),
-                quantity=pos.get("quantity", 0),
+                avg_cost=pos.avg_cost or 0,
+                current_price=pos.current_price or 0,
+                quantity=pos.quantity or 0,
             )
             Position.upsert(
-                stock_code=pos["stock_code"],
-                stock_name=pos.get("stock_name", ""),
-                quantity=pos.get("quantity", 0),
-                avg_cost=pos.get("avg_cost", 0),
-                current_price=pos.get("current_price", 0),
+                stock_code=pos.stock_code,
+                stock_name=getattr(pos, "stock_name", "") or "",
+                quantity=pos.quantity or 0,
+                avg_cost=pos.avg_cost or 0,
+                current_price=pos.current_price or 0,
             )
         return Position.all()
     except Exception:

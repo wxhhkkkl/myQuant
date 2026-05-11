@@ -21,6 +21,8 @@ frontend/static/css/output.css
 # Environment
 .env
 .env.local
+.env.sim
+.env.prod
 
 # IDE
 .vscode/

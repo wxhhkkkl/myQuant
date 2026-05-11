@@ -1,36 +1,46 @@
 {% extends "base.html" %}
-{% block title %}AI选股 - myQuant{% endblock %}
+{% block title %}个股列表 - myQuant{% endblock %}
 
 {% block content %}
 <div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">AI选股</h1>
-    <p class="text-gray-500 mt-1">搜索股票代码或名称，或使用AI智能选股</p>
+    <h1 class="text-2xl font-bold text-gray-800">个股列表</h1>
+    <p class="text-gray-500 mt-1">浏览全部A股股票，管理自选股</p>
 </div>
 
-<div class="mb-6 flex gap-4">
+<div class="mb-4 flex gap-3 items-center flex-wrap"
+     x-data="{ keyword: '', watchlistOnly: false }">
     <input
         type="text"
-        name="q"
-        placeholder="输入股票代码或名称..."
-        class="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        hx-get="/api/stocks/search"
-        hx-trigger="keyup changed delay:300ms"
-        hx-target="#search-results"
-        hx-indicator="#search-spinner"
+        name="keyword"
+        placeholder="输入股票代码或名称搜索..."
+        class="border rounded-lg px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        x-model="keyword"
+        @keyup.debounce.300ms="
+            htmx.ajax('GET', `/stocks/table?keyword=${encodeURIComponent(keyword)}&watchlist_only=${watchlistOnly}`, {target: '#stock-table-container'})
+        "
     >
-    <button
-        class="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
-        hx-post="/api/stocks/ai-picks"
-        hx-target="#ai-picks-results"
-        hx-indicator="#ai-spinner"
-    >
-        AI选股
-    </button>
+    <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+        <input type="checkbox" x-model="watchlistOnly"
+            @change="
+                htmx.ajax('GET', `/stocks/table?watchlist_only=${watchlistOnly}&keyword=${encodeURIComponent(keyword)}`, {target: '#stock-table-container'})
+            ">
+        仅看自选
+    </label>
+    <span class="ml-auto">
+        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+            hx-post="/api/data/update-stocks" hx-target="#update-status" hx-indicator="#update-spinner">
+            更新个股基础信息
+        </button>
+        <span id="update-spinner" class="htmx-indicator text-xs text-gray-400 ml-2">更新中...</span>
+    </span>
 </div>
 
-<div id="ai-spinner" class="htmx-indicator text-sm text-gray-400 mb-4">AI分析中...</div>
-<div id="ai-picks-results" class="mb-8"></div>
+<div id="update-status" class="mb-4"></div>
 
-<div id="search-spinner" class="htmx-indicator text-sm text-gray-400 mb-4">搜索中...</div>
-<div id="search-results" class="grid gap-2"></div>
+<div id="stock-table-container"
+     hx-get="/stocks/table"
+     hx-trigger="load, update-done from:body"
+     hx-indicator="#table-spinner">
+    <div id="table-spinner" class="htmx-indicator text-sm text-gray-400 py-8 text-center">加载中...</div>
+</div>
 {% endblock %}

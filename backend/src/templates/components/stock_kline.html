@@ -1,0 +1,89 @@
+<div x-data="{
+        period: 'daily',
+        klineData: [],
+        async loadKline(p) {
+            period = p;
+            const resp = await fetch(`/api/stocks/{{ code }}/kline?period=${period}`);
+            const json = await resp.json();
+            klineData = json.data;
+            this.renderChart();
+        },
+        renderChart() {
+            const chartDom = document.getElementById('kline-chart-{{ code }}');
+            if (!chartDom) return;
+            const data = klineData;
+            if (!data || data.length === 0) return;
+            const dates = data.map(d => d.trade_date);
+            const ohlc = data.map(d => [d.open, d.close, d.low, d.high]);
+            const volumes = data.map(d => d.volume);
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' }
+                },
+                grid: [
+                    { left: '8%', right: '3%', top: '5%', height: '60%' },
+                    { left: '8%', right: '3%', top: '72%', height: '15%' }
+                ],
+                xAxis: [
+                    { type: 'category', data: dates, gridIndex: 0, axisLabel: { fontSize: 10 } },
+                    { type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false } }
+                ],
+                yAxis: [
+                    { type: 'value', gridIndex: 0, scale: true, axisLabel: { fontSize: 10 } },
+                    { type: 'value', gridIndex: 1, axisLabel: { fontSize: 10 } }
+                ],
+                series: [
+                    {
+                        name: 'K线',
+                        type: 'candlestick',
+                        data: ohlc,
+                        xAxisIndex: 0,
+                        yAxisIndex: 0,
+                        itemStyle: {
+                            color: '#ef4444',
+                            color0: '#22c55e',
+                            borderColor: '#ef4444',
+                            borderColor0: '#22c55e'
+                        }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        data: volumes,
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        itemStyle: {
+                            color: function(params) {
+                                const idx = params.dataIndex;
+                                if (idx >= data.length) return '#d1d5db';
+                                return data[idx].close >= data[idx].open ? '#ef4444' : '#22c55e';
+                            }
+                        }
+                    }
+                ],
+                dataZoom: [
+                    { type: 'inside', xAxisIndex: [0, 1], start: 50, end: 100 },
+                    { type: 'slider', xAxisIndex: [0, 1], start: 50, end: 100, height: 20, bottom: 5 }
+                ]
+            };
+            const chart = echarts.init(chartDom);
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+    }"
+    x-init="loadKline('daily')">
+    <div class="flex items-center gap-2 mb-3">
+        <span class="text-sm font-medium text-gray-600">K线周期:</span>
+        <button @click="loadKline('daily')"
+            :class="period === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            class="px-3 py-1 rounded text-xs font-medium">日K</button>
+        <button @click="loadKline('weekly')"
+            :class="period === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            class="px-3 py-1 rounded text-xs font-medium">周K</button>
+        <button @click="loadKline('monthly')"
+            :class="period === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            class="px-3 py-1 rounded text-xs font-medium">月K</button>
+    </div>
+    <div id="kline-chart-{{ code }}" style="width: 100%; height: 450px;"></div>
+</div>
