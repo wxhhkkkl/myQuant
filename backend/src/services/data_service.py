@@ -292,7 +292,7 @@ def run_stock_update():
         for code in stocks:
             try:
                 info = xtdata.get_instrument_detail(code)
-                name = info.get("StockName", "") if info else ""
+                name = info.get("InstrumentName", info.get("StockName", "")) if info else ""
                 industry = info.get("Industry", "") if info else ""
                 exchange = "SH" if code.startswith("6") else "SZ"
                 list_date = info.get("ListDate", None) if info else None
