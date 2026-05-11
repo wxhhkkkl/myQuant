@@ -16,13 +16,13 @@
         {% include "components/stock_kline.html" %}
     </div>
     <div class="lg:col-span-1">
+        <div id="quote-loading" class="htmx-indicator bg-white rounded-lg border p-4 text-center text-sm text-gray-400">
+            加载行情...
+        </div>
         <div hx-get="/stocks/{{ stock.stock_code }}/quote-view"
              hx-trigger="load"
-             hx-indicator="#quote-loading">
-            <div id="quote-loading" class="htmx-indicator bg-white rounded-lg border p-4 text-center text-sm text-gray-400">
-                加载行情...
-            </div>
-        </div>
+             hx-swap="outerHTML"
+             hx-indicator="#quote-loading"></div>
     </div>
 </div>
 
