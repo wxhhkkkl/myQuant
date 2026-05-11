@@ -367,7 +367,13 @@ def get_quote(code: str) -> dict:
     """, (code,)).fetchone()
 
     if not row:
-        return {"stock_code": code, "latest_price": None}
+        return {
+            "stock_code": code, "latest_price": None,
+            "change_pct": None, "change_amount": None,
+            "open": None, "high": None, "low": None,
+            "pre_close": None, "volume": None, "amount": None,
+            "trade_date": None,
+        }
 
     pre_row = db.query("""
         SELECT close FROM daily_kline
