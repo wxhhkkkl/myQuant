@@ -65,7 +65,6 @@
                         {% if s.in_watchlist %}
                         <button class="text-yellow-500 text-xs hover:text-yellow-600"
                             hx-delete="/api/watchlist/{{ s.stock_code }}"
-                            hx-headers='{"Content-Type": "application/json"}'
                             hx-swap="none"
                             hx-on::after-request="htmx.ajax('GET', window.location.pathname === '/stocks' ? `/stocks/table?sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}` : '/stocks/table', {target: '#stock-table-container'})">
                             ★ 已自选
@@ -74,7 +73,6 @@
                         <button class="text-gray-300 text-xs hover:text-yellow-500"
                             hx-post="/api/watchlist/add"
                             hx-vals='{"stock_code": "{{ s.stock_code }}"}'
-                            hx-headers='{"Content-Type": "application/json"}'
                             hx-swap="none"
                             hx-on::after-request="htmx.ajax('GET', `/stocks/table?sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}`, {target: '#stock-table-container'})">
                             ☆ 加自选

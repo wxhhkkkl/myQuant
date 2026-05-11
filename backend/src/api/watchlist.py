@@ -25,7 +25,12 @@ async def check_watchlist_contains(codes: str = Query("")):
 
 @router.post("/api/watchlist/add")
 async def add_to_watchlist(request: Request):
-    data = await request.json()
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        data = await request.json()
+    else:
+        form = await request.form()
+        data = {k: v for k, v in form.items()}
     code = data.get("stock_code")
     notes = data.get("notes")
     if not code:
