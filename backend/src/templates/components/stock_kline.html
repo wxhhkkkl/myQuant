@@ -2,20 +2,24 @@
         period: 'daily',
         klineData: [],
         async loadKline(p) {
-            period = p;
-            const resp = await fetch(`/api/stocks/{{ code }}/kline?period=${period}`);
-            const json = await resp.json();
-            klineData = json.data;
-            this.renderChart();
+            this.period = p;
+            try {
+                const resp = await fetch('/api/stocks/{{ code }}/kline?period=' + this.period);
+                const json = await resp.json();
+                this.klineData = json.data || [];
+                this.renderChart();
+            } catch (e) {
+                console.error('Kline load failed:', e);
+            }
         },
         renderChart() {
             const chartDom = document.getElementById('kline-chart-{{ code }}');
             if (!chartDom) return;
-            const data = klineData;
+            const data = this.klineData;
             if (!data || data.length === 0) return;
-            const dates = data.map(d => d.trade_date);
-            const ohlc = data.map(d => [d.open, d.close, d.low, d.high]);
-            const volumes = data.map(d => d.volume);
+            const dates = data.map(d =&gt; d.trade_date);
+            const ohlc = data.map(d =&gt; [d.open, d.close, d.low, d.high]);
+            const volumes = data.map(d =&gt; d.volume);
             const option = {
                 tooltip: {
                     trigger: 'axis',
@@ -55,7 +59,7 @@
                         yAxisIndex: 1,
                         itemStyle: {
                             color: function(params) {
-                                const idx = params.dataIndex;
+                                var idx = params.dataIndex;
                                 if (idx >= data.length) return '#d1d5db';
                                 return data[idx].close >= data[idx].open ? '#ef4444' : '#22c55e';
                             }
@@ -67,9 +71,10 @@
                     { type: 'slider', xAxisIndex: [0, 1], start: 50, end: 100, height: 20, bottom: 5 }
                 ]
             };
-            const chart = echarts.init(chartDom);
+            var existing = echarts.getInstanceByDom(chartDom);
+            var chart = existing || echarts.init(chartDom);
             chart.setOption(option);
-            window.addEventListener('resize', () => chart.resize());
+            window.addEventListener('resize', function() { chart.resize(); });
         }
     }"
     x-init="loadKline('daily')">
