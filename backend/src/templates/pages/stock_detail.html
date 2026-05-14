@@ -4,10 +4,38 @@
 {% block content %}
 <div class="mb-4">
     <a href="/stocks" class="text-sm text-blue-600 hover:underline">&larr; 返回个股列表</a>
-    <h1 class="text-2xl font-bold text-gray-800 mt-1">
-        {{ stock.stock_name }}
-        <span class="text-lg text-gray-400 font-normal">{{ stock.stock_code }}</span>
-    </h1>
+    <div class="flex items-center gap-3 mt-1">
+        <h1 class="text-2xl font-bold text-gray-800">
+            {{ stock.stock_name }}
+            <span class="text-lg text-gray-400 font-normal">{{ stock.stock_code }}</span>
+        </h1>
+        <div x-data="{ inWatchlist: false }"
+             x-init="
+                (async () => {
+                    const res = await fetch('/api/watchlist/contains?codes={{ stock.stock_code }}');
+                    const data = await res.json();
+                    inWatchlist = !!data['{{ stock.stock_code }}'];
+                })()
+             ">
+            <button class="text-sm px-3 py-1 rounded border"
+                    :class="inWatchlist ? 'bg-yellow-50 border-yellow-300 text-yellow-600 cursor-default' : 'bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100'"
+                    :disabled="inWatchlist"
+                    @click="
+                        if (inWatchlist) return;
+                        (async () => {
+                            await htmx.ajax('POST', '/api/watchlist/add', {swap: 'none', values: {stock_code: '{{ stock.stock_code }}'}});
+                            inWatchlist = true;
+                        })()
+                    ">
+                <span x-show="inWatchlist">★ 已自选</span>
+                <span x-show="!inWatchlist">☆ 加入自选</span>
+            </button>
+        </div>
+                <span x-show="inWatchlist">★ 已自选</span>
+                <span x-show="!inWatchlist">☆ 加入自选</span>
+            </button>
+        </div>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
@@ -26,7 +54,7 @@
     </div>
 </div>
 
-<div x-data="{ tab: 'fundamentals' }">
+<div x-data="{ tab: 'fundamentals' }" x-init="htmx.ajax('GET', '/api/stocks/{{ stock.stock_code }}/fundamentals', {target: '#tab-content'})">
     <nav class="flex gap-1 border-b mb-4">
         {% for t in [('fundamentals', '基本面'), ('financials', '财务'), ('sentiment', '舆情'), ('sector', '板块')] %}
         <button
@@ -41,7 +69,7 @@
     </nav>
 
     <div id="tab-content" class="bg-white rounded-lg border p-6 min-h-[200px]">
-        <div class="text-gray-400 text-sm">选择上方标签加载数据</div>
+        <div class="text-gray-400 text-sm">加载中...</div>
     </div>
 </div>
 {% endblock %}

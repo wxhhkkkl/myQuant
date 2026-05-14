@@ -2,56 +2,61 @@
     <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b">
             <tr>
-                <th class="text-left px-4 py-3 font-medium text-gray-600 w-36">
+                <th class="text-left px-3 py-3 font-medium text-gray-600 w-24">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/stocks/table?sort_by=stock_code&sort_order={{ next_sort('stock_code') }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}"
+                       hx-get="/stocks/table?sort_by=stock_code&sort_order={{ next_sort('stock_code') }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}"
                        hx-target="#stock-table-container">
                         代码{{ sort_icon('stock_code') }}
                     </a>
                 </th>
-                <th class="text-left px-4 py-3 font-medium text-gray-600">名称</th>
-                <th class="text-right px-4 py-3 font-medium text-gray-600 w-28">
+                <th class="text-left px-2 py-3 font-medium text-gray-600">名称</th>
+                <th class="text-left px-2 py-3 font-medium text-gray-600 w-24">板块</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/stocks/table?sort_by=latest_price&sort_order={{ next_sort('latest_price') }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}"
+                       hx-get="/stocks/table?sort_by=latest_price&sort_order={{ next_sort('latest_price') }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}"
                        hx-target="#stock-table-container">
                         最新价{{ sort_icon('latest_price') }}
                     </a>
                 </th>
-                <th class="text-right px-4 py-3 font-medium text-gray-600 w-28">
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/stocks/table?sort_by=change_pct&sort_order={{ next_sort('change_pct') }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}"
+                       hx-get="/stocks/table?sort_by=change_pct&sort_order={{ next_sort('change_pct') }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}"
                        hx-target="#stock-table-container">
                         涨跌幅{{ sort_icon('change_pct') }}
                     </a>
                 </th>
-                <th class="text-center px-4 py-3 font-medium text-gray-600 w-24">自选</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">市盈率</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">股息率</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">每股净资产</th>
+                <th class="text-center px-3 py-3 font-medium text-gray-600 w-20">自选</th>
             </tr>
         </thead>
         <tbody>
             {% if stocks %}
                 {% for s in stocks %}
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="px-4 py-2.5">
+                    <td class="px-3 py-2.5">
                         <a href="/stocks/{{ s.stock_code }}"
                            class="text-blue-600 hover:underline font-mono text-xs">{{ s.stock_code }}</a>
                     </td>
-                    <td class="px-4 py-2.5 text-gray-800">
+                    <td class="px-2 py-2.5 text-gray-800 text-xs">
                         {{ s.stock_name }}
                         {% if not s.is_active %}
                         <span class="ml-1 text-xs bg-gray-200 text-gray-500 px-1 py-0.5 rounded">已退市</span>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-2.5 text-right font-mono text-xs">
+                    <td class="px-2 py-2.5 text-xs text-gray-500">{{ s.industry or '-' }}</td>
+                    <td class="px-2 py-2.5 text-right font-mono text-xs">
                         {% if s.latest_price is not none %}
                             {{ "%.2f"|format(s.latest_price) }}
                         {% else %}
                             <span class="text-gray-300">-</span>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-2.5 text-right font-mono text-xs
+                    <td class="px-2 py-2.5 text-right font-mono text-xs
                         {% if s.change_pct is not none %}
                             {% if s.change_pct > 0 %}text-red-600{% elif s.change_pct < 0 %}text-green-600{% else %}text-gray-500{% endif %}
                         {% endif %}">
@@ -61,21 +66,30 @@
                             <span class="text-gray-300">-</span>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-2.5 text-center">
+                    <td class="px-2 py-2.5 text-right font-mono text-xs text-gray-700">
+                        {{ "%.2f"|format(s.pe_ratio) if s.pe_ratio else '-' }}
+                    </td>
+                    <td class="px-2 py-2.5 text-right font-mono text-xs text-gray-700">
+                        {{ ("%.2f%%"|format(s.dividend_yield)) if s.dividend_yield else '-' }}
+                    </td>
+                    <td class="px-2 py-2.5 text-right font-mono text-xs text-gray-700">
+                        {{ "%.2f"|format(s.book_value_per_share) if s.book_value_per_share else '-' }}
+                    </td>
+                    <td class="px-3 py-2.5 text-center">
                         {% if s.in_watchlist %}
                         <button class="text-yellow-500 text-xs hover:text-yellow-600"
                             hx-delete="/api/watchlist/{{ s.stock_code }}"
                             hx-swap="none"
-                            hx-on::after-request="htmx.ajax('GET', window.location.pathname === '/stocks' ? `/stocks/table?sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}` : '/stocks/table', {target: '#stock-table-container'})">
-                            ★ 已自选
+                            hx-on::after-request="htmx.ajax('GET', window.location.pathname === '/stocks' ? `/stocks/table?sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}` : '/stocks/table', {target: '#stock-table-container'})">
+                            ★
                         </button>
                         {% else %}
                         <button class="text-gray-300 text-xs hover:text-yellow-500"
                             hx-post="/api/watchlist/add"
                             hx-vals='{"stock_code": "{{ s.stock_code }}"}'
                             hx-swap="none"
-                            hx-on::after-request="htmx.ajax('GET', `/stocks/table?sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}`, {target: '#stock-table-container'})">
-                            ☆ 加自选
+                            hx-on::after-request="htmx.ajax('GET', `/stocks/table?sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}`, {target: '#stock-table-container'})">
+                            ☆
                         </button>
                         {% endif %}
                     </td>
@@ -83,7 +97,7 @@
                 {% endfor %}
             {% else %}
                 <tr>
-                    <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+                    <td colspan="9" class="px-4 py-12 text-center text-gray-400">
                         {% if watchlist_only %}
                             暂无自选股，请先添加
                         {% else %}
@@ -101,19 +115,19 @@
         <div class="flex gap-1">
             {% if pagination.page > 1 %}
             <button class="px-2 py-1 border rounded hover:bg-gray-100"
-                hx-get="/stocks/table?page={{ pagination.page - 1 }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}"
+                hx-get="/stocks/table?page={{ pagination.page - 1 }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}"
                 hx-target="#stock-table-container">上一页</button>
             {% endif %}
             {% for p in range(1, pagination.total_pages + 1) %}
                 {% if p >= pagination.page - 2 and p <= pagination.page + 2 %}
                 <button class="px-2 py-1 border rounded {% if p == pagination.page %}bg-blue-600 text-white{% else %}hover:bg-gray-100{% endif %}"
-                    hx-get="/stocks/table?page={{ p }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}"
+                    hx-get="/stocks/table?page={{ p }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}"
                     hx-target="#stock-table-container">{{ p }}</button>
                 {% endif %}
             {% endfor %}
             {% if pagination.page < pagination.total_pages %}
             <button class="px-2 py-1 border rounded hover:bg-gray-100"
-                hx-get="/stocks/table?page={{ pagination.page + 1 }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}"
+                hx-get="/stocks/table?page={{ pagination.page + 1 }}&sort_by={{ sort_by }}&sort_order={{ sort_order }}&keyword={{ keyword|default('') }}&watchlist_only={{ 'true' if watchlist_only else 'false' }}&industry={{ industry|default('') }}"
                 hx-target="#stock-table-container">下一页</button>
             {% endif %}
         </div>

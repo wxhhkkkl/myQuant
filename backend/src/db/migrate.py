@@ -10,7 +10,7 @@ def run_migrations():
     from backend.src.models.watchlist import Watchlist
     from backend.src.models.fundamental import StockFundamental
     from backend.src.models.financial_report import FinancialReport
-    from backend.src.models.sentiment_news import SentimentNews
+    from backend.src.models.sentiment_news import SentimentNews, SentimentCache
     from backend.src.models.strategy_config import StrategyConfig
     from backend.src.models.trade_signal import TradeSignal
     from backend.src.models.order import Order
@@ -25,6 +25,7 @@ def run_migrations():
     StockFundamental.create_table()
     FinancialReport.create_table()
     SentimentNews.create_table()
+    SentimentCache.create_table()
     StrategyConfig.create_table()
     TradeSignal.create_table()
     Order.create_table()

@@ -1,12 +1,69 @@
-<div class="space-y-4">
-    <h3 class="text-lg font-semibold text-gray-700">舆情资讯</h3>
+<div class="space-y-4" x-data="{ analyzing: false }"
+     @htmx:afterRequest.window="analyzing = false">
+    <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-700">舆情资讯</h3>
+        <button class="bg-purple-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                :disabled="analyzing"
+                @click="
+                    analyzing = true;
+                    htmx.ajax('POST', '/api/stocks/{{ code }}/sentiment-analysis', {
+                        target: '#sentiment-analysis-result',
+                        swap: 'innerHTML'
+                    });
+                ">
+            <span x-show="!analyzing">探测舆情</span>
+            <span x-show="analyzing" x-cloak>分析中...</span>
+        </button>
+    </div>
+
+    <!-- AI analysis result -->
+    <div id="sentiment-analysis-result">
+        {% if cached %}
+        {% with result=cached.result, analyzed_at=cached.analyzed_at %}
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3 mb-4">
+            <div class="flex items-center justify-between">
+                <h4 class="text-sm font-semibold text-purple-800">AI 舆情分析结果</h4>
+                <span class="text-xs text-gray-400">上次分析: {{ analyzed_at[:19] }}</span>
+            </div>
+            {% if result.news_sentiment %}
+            {% set ns = result.news_sentiment %}
+            <div class="bg-white rounded border p-3">
+                <div class="text-xs text-gray-400 mb-1">新闻情绪评分</div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-2xl font-bold {% if ns.score > 2 %}text-green-600{% elif ns.score < -2 %}text-red-600{% else %}text-gray-600{% endif %}">{{ ns.score }}</span>
+                    <span class="text-xs px-2 py-0.5 rounded border {% if ns.score > 2 %}text-green-700 bg-green-100{% elif ns.score < -2 %}text-red-700 bg-red-100{% else %}text-gray-700 bg-gray-100{% endif %}">{{ ns.label }}</span>
+                </div>
+                {% if ns.summary %}
+                <p class="text-xs text-gray-500">{{ ns.summary }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if result.comment_sentiment %}
+            {% set cs = result.comment_sentiment %}
+            <div class="bg-white rounded border p-3">
+                <div class="text-xs text-gray-400 mb-1">网友评论情绪评分</div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-2xl font-bold {% if cs.score > 2 %}text-green-600{% elif cs.score < -2 %}text-red-600{% else %}text-gray-600{% endif %}">{{ cs.score }}</span>
+                    <span class="text-xs px-2 py-0.5 rounded border {% if cs.score > 2 %}text-green-700 bg-green-100{% elif cs.score < -2 %}text-red-700 bg-red-100{% else %}text-gray-700 bg-gray-100{% endif %}">{{ cs.label }}</span>
+                </div>
+                {% if cs.summary %}
+                <p class="text-xs text-gray-500">{{ cs.summary }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endwith %}
+        {% endif %}
+    </div>
 
     {% if news %}
     <div class="space-y-3">
         {% for n in news %}
         <div class="border-b pb-3 last:border-0">
             <div class="flex items-start gap-2">
-                {% if n.sentiment == 'positive' %}
+                {% if n.source and n.source.startswith('股吧网友') %}
+                <span class="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 whitespace-nowrap">股吧</span>
+                {% elif n.sentiment == 'positive' %}
                 <span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 whitespace-nowrap">利好</span>
                 {% elif n.sentiment == 'negative' %}
                 <span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 whitespace-nowrap">利空</span>
@@ -14,9 +71,13 @@
                 <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-500 whitespace-nowrap">中性</span>
                 {% endif %}
                 <div>
-                    <a href="{{ n.url or '#' }}" class="text-sm text-blue-700 hover:underline" target="_blank">
+                    {% if n.url %}
+                    <a href="{{ n.url }}" class="text-sm text-blue-700 hover:underline" target="_blank">
                         {{ n.title }}
                     </a>
+                    {% else %}
+                    <span class="text-sm text-gray-800">{{ n.title }}</span>
+                    {% endif %}
                     {% if n.summary %}
                     <p class="text-xs text-gray-400 mt-1">{{ n.summary[:200] }}</p>
                     {% endif %}

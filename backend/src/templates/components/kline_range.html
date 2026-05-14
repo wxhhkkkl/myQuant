@@ -1,0 +1,7 @@
+{% if range.min_date %}
+<span class="text-xs text-gray-500">
+    K线数据范围: {{ range.min_date }} ~ {{ range.max_date }}，覆盖 {{ range.stock_count }} 只股票
+</span>
+{% else %}
+<span class="text-xs text-gray-400">暂无K线数据，请点击"更新K线数据"下载</span>
+{% endif %}

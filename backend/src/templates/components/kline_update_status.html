@@ -1,0 +1,19 @@
+{% if s.running %}
+<div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm"
+     hx-get="/api/data/update-kline/status"
+     hx-trigger="every 2s"
+     hx-target="this"
+     hx-swap="outerHTML">
+    <div class="flex items-center gap-2 mb-2">
+        <span class="inline-block w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></span>
+        <span class="font-medium text-blue-800">{{ s.message }}</span>
+    </div>
+    <div class="w-full bg-blue-200 rounded-full h-2">
+        <div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 100%"></div>
+    </div>
+</div>
+{% elif s.message and not s.running %}
+<div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
+    <span class="text-green-600 font-medium">K线数据更新完成</span>
+</div>
+{% endif %}

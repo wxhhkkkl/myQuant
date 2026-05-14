@@ -1,0 +1,128 @@
+<div x-data="{
+    timeRange: '1y',
+    granularity: 'monthly',
+    rotationData: null,
+    loading: false,
+
+    async loadRotation() {
+        this.loading = true;
+        const resp = await fetch(`/api/sectors/rotation?time_range=${this.timeRange}&granularity=${this.granularity}`);
+        this.rotationData = await resp.json();
+        this.loading = false;
+        this.$nextTick(() => this.renderChart());
+    },
+
+    renderChart() {
+        const el = document.getElementById('rotation-chart');
+        if (!el || !this.rotationData) return;
+        const chart = echarts.init(el);
+
+        const periods = this.rotationData.periods;
+        const leaders = this.rotationData.leaders;
+
+        // Build heatmap-style data: rows=sectors, cols=periods
+        const allSectors = [...new Set(leaders.flatMap(l => l.top3.map(t => t.sector)))];
+
+        const series = allSectors.map((sector, idx) => {
+            const data = periods.map(p => {
+                const entry = leaders.find(l => l.period.startsWith(p) || l.period === p);
+                if (!entry) return null;
+                const found = entry.top3.find(t => t.sector === sector);
+                return found ? found.change_pct : null;
+            });
+            return {
+                name: sector,
+                type: 'bar',
+                stack: 'total',
+                emphasis: { focus: 'series' },
+                data: data,
+            };
+        });
+
+        chart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: function(params) {
+                    let s = `<strong>${params[0].axisValue}</strong><br>`;
+                    const sorted = params.filter(p => p.value).sort((a, b) => b.value - a.value);
+                    sorted.slice(0, 3).forEach(p => {
+                        s += `${p.seriesName}: ${p.value > 0 ? '+' : ''}${p.value}%<br>`;
+                    });
+                    return s;
+                }
+            },
+            legend: {
+                type: 'scroll',
+                orient: 'vertical',
+                right: 10,
+                top: 20,
+                textStyle: { fontSize: 11 },
+            },
+            grid: { left: 50, right: 120, top: 20, bottom: 40 },
+            xAxis: {
+                type: 'category',
+                data: periods,
+                axisLabel: { rotate: 45, fontSize: 10 },
+            },
+            yAxis: { type: 'value', name: '涨跌幅(%)' },
+            series: series,
+        });
+
+        chart.off('click');
+        chart.on('click', function(params) {
+            const period = params.name;
+            // HTMX load period detail
+            htmx.ajax('GET', `/api/sectors/rotation?time_range=${this.timeRange}&granularity=${this.granularity}`, {
+                target: '#rotation-detail',
+                swap: 'innerHTML',
+            });
+        }.bind(this));
+
+        window.addEventListener('resize', () => chart.resize());
+    }
+}" x-init="loadRotation()">
+
+    <!-- Controls -->
+    <div class="flex items-center gap-4 mb-4">
+        <!-- Time Range -->
+        <div class="flex items-center gap-1 text-sm">
+            <span class="text-gray-500">时间:</span>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '1m' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '1m'; loadRotation()">1月</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '3m' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '3m'; loadRotation()">3月</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '6m' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '6m'; loadRotation()">6月</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '1y' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '1y'; loadRotation()">1年</button>
+        </div>
+
+        <!-- Granularity -->
+        <div class="flex items-center gap-1 text-sm">
+            <span class="text-gray-500">粒度:</span>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="granularity === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="granularity = 'monthly'; loadRotation()">月</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="granularity === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="granularity = 'weekly'; loadRotation()">周</button>
+        </div>
+
+        <span x-show="loading" class="text-xs text-gray-400">
+            <span class="inline-block w-3 h-3 border-2 border-gray-300 border-t-transparent rounded-full animate-spin mr-1"></span>
+            加载中...
+        </span>
+    </div>
+
+    <!-- Chart -->
+    <div id="rotation-chart" class="bg-white rounded-lg border" style="height: 400px;"></div>
+
+    <!-- Period detail (click to load) -->
+    <div id="rotation-detail" class="mt-4"></div>
+
+</div>

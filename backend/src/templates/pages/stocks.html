@@ -8,7 +8,7 @@
 </div>
 
 <div class="mb-4 flex gap-3 items-center flex-wrap"
-     x-data="{ keyword: '', watchlistOnly: false }">
+     x-data="{ keyword: '', watchlistOnly: false, industry: '', showKlineModal: false, klineStart: '2020-01-01', klineEnd: '{{ today }}' }">
     <input
         type="text"
         name="keyword"
@@ -16,26 +16,83 @@
         class="border rounded-lg px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
         x-model="keyword"
         @keyup.debounce.300ms="
-            htmx.ajax('GET', `/stocks/table?keyword=${encodeURIComponent(keyword)}&watchlist_only=${watchlistOnly}`, {target: '#stock-table-container'})
+            htmx.ajax('GET', `/stocks/table?keyword=${encodeURIComponent(keyword)}&watchlist_only=${watchlistOnly}&industry=${encodeURIComponent(industry)}`, {target: '#stock-table-container'})
         "
     >
+    <select
+        class="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        x-model="industry"
+        @change="
+            htmx.ajax('GET', `/stocks/table?industry=${encodeURIComponent(industry)}&keyword=${encodeURIComponent(keyword)}&watchlist_only=${watchlistOnly}`, {target: '#stock-table-container'})
+        ">
+        <option value="">全部板块</option>
+        {% for ind in industries %}
+        <option value="{{ ind }}">{{ ind }}</option>
+        {% endfor %}
+    </select>
     <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
         <input type="checkbox" x-model="watchlistOnly"
             @change="
-                htmx.ajax('GET', `/stocks/table?watchlist_only=${watchlistOnly}&keyword=${encodeURIComponent(keyword)}`, {target: '#stock-table-container'})
+                htmx.ajax('GET', `/stocks/table?watchlist_only=${watchlistOnly}&keyword=${encodeURIComponent(keyword)}&industry=${encodeURIComponent(industry)}`, {target: '#stock-table-container'})
             ">
         仅看自选
     </label>
-    <span class="ml-auto">
+    <span class="ml-auto flex items-center gap-2">
         <button class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
             hx-post="/api/data/update-stocks" hx-target="#update-status" hx-indicator="#update-spinner">
             更新个股基础信息
         </button>
+        <button class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700"
+            @click="showKlineModal = true">
+            更新K线数据
+        </button>
         <span id="update-spinner" class="htmx-indicator text-xs text-gray-400 ml-2">更新中...</span>
     </span>
+
+    <!-- K-line update date picker modal -->
+    <div x-show="showKlineModal"
+         @click.self="showKlineModal = false"
+         @keyup.escape.window="showKlineModal = false"
+         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+         x-transition>
+        <div class="bg-white rounded-lg p-6 w-96 shadow-xl" @click.stop="">
+            <h3 class="text-lg font-semibold mb-4">更新K线数据</h3>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-600 mb-1">开始日期</label>
+                <input type="date" x-model="klineStart"
+                       class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm text-gray-600 mb-1">结束日期</label>
+                <input type="date" x-model="klineEnd"
+                       class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex justify-end gap-3">
+                <button @click="showKlineModal = false"
+                        class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">取消</button>
+                <button class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                        @click="
+                            showKlineModal = false;
+                            htmx.ajax('POST', '/api/data/update-kline', {
+                                target: '#kline-update-status',
+                                values: {start_date: klineStart, end_date: klineEnd}
+                            });
+                        ">开始更新</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div id="update-status" class="mb-4"></div>
+
+<div id="kline-update-status" class="mb-4"></div>
+
+<div class="mb-2"
+     hx-get="/api/data/kline-range"
+     hx-trigger="load, update-done from:body"
+     hx-indicator="#kline-range-spinner">
+    <span id="kline-range-spinner" class="htmx-indicator text-xs text-gray-400">加载K线数据范围...</span>
+</div>
 
 <div id="stock-table-container"
      hx-get="/stocks/table"

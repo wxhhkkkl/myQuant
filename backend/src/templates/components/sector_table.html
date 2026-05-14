@@ -1,0 +1,107 @@
+{% if sectors %}
+<div class="bg-white rounded-lg border overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+            <tr>
+                <th class="text-left px-3 py-3 font-medium text-gray-600">
+                    <a href="#"
+                       class="hover:text-blue-600 inline-flex items-center gap-1"
+                       hx-get="/api/sectors/list?sort_by=sector_name&sort_order={{ 'asc' if sort_by != 'sector_name' or sort_order == 'desc' else 'desc' }}"
+                       hx-target="#sector-table-container">
+                        板块名称
+                    </a>
+                </th>
+                <th class="text-center px-3 py-3 font-medium text-gray-600 w-20">
+                    <a href="#"
+                       class="hover:text-blue-600 inline-flex items-center gap-1"
+                       hx-get="/api/sectors/list?sort_by=valuation_level&sort_order={{ 'asc' if sort_by != 'valuation_level' or sort_order == 'desc' else 'desc' }}"
+                       hx-target="#sector-table-container">
+                        估值分位
+                    </a>
+                </th>
+                <th class="text-center px-3 py-3 font-medium text-gray-600 w-24">
+                    <a href="#"
+                       class="hover:text-blue-600 inline-flex items-center gap-1"
+                       hx-get="/api/sectors/list?sort_by=movement_count_1y&sort_order={{ 'asc' if sort_by != 'movement_count_1y' or sort_order == 'desc' else 'desc' }}"
+                       hx-target="#sector-table-container">
+                        近一年行情
+                    </a>
+                </th>
+                <th class="text-right px-3 py-3 font-medium text-gray-600 w-24">
+                    <a href="#"
+                       class="hover:text-blue-600 inline-flex items-center gap-1"
+                       hx-get="/api/sectors/list?sort_by=change_pct_1w&sort_order={{ 'asc' if sort_by != 'change_pct_1w' or sort_order == 'desc' else 'desc' }}"
+                       hx-target="#sector-table-container">
+                        近一周涨跌
+                    </a>
+                </th>
+                <th class="text-center px-3 py-3 font-medium text-gray-600 w-20">
+                    <a href="#"
+                       class="hover:text-blue-600 inline-flex items-center gap-1"
+                       hx-get="/api/sectors/list?sort_by=heat_rank&sort_order={{ 'asc' if sort_by != 'heat_rank' or sort_order == 'desc' else 'desc' }}"
+                       hx-target="#sector-table-container">
+                        热度排名
+                    </a>
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sectors %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="px-3 py-2.5">
+                    <a href="/sector-analysis/{{ s.sector_name | urlencode }}"
+                       class="text-blue-600 hover:underline text-xs font-medium">
+                        {{ s.sector_name }}
+                    </a>
+                    {% if not s.trend_available %}
+                    <span class="ml-1 text-xs bg-yellow-100 text-yellow-700 px-1 py-0.5 rounded">数据不足</span>
+                    {% endif %}
+                </td>
+                <td class="px-3 py-2.5 text-center">
+                    {% if s.valuation_level == '高估' %}
+                    <span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">{{ s.valuation_level }}</span>
+                    {% elif s.valuation_level == '低估' %}
+                    <span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">{{ s.valuation_level }}</span>
+                    {% elif s.valuation_level == '适中' %}
+                    <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ s.valuation_level }}</span>
+                    {% else %}
+                    <span class="text-gray-300">--</span>
+                    {% endif %}
+                </td>
+                <td class="px-3 py-2.5 text-center font-mono text-xs text-gray-700">
+                    {{ s.movement_count_1y }} 次
+                </td>
+                <td class="px-3 py-2.5 text-right font-mono text-xs
+                    {% if s.change_pct_1w is not none %}
+                        {% if s.change_pct_1w > 0 %}text-red-600{% elif s.change_pct_1w < 0 %}text-green-600{% else %}text-gray-500{% endif %}
+                    {% endif %}">
+                    {% if s.change_pct_1w is not none %}
+                        {{ "%+.2f%%"|format(s.change_pct_1w) }}
+                    {% else %}
+                        <span class="text-gray-300">--</span>
+                    {% endif %}
+                </td>
+                <td class="px-3 py-2.5 text-center font-mono text-xs">
+                    {% if s.heat_rank %}
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
+                        {% if s.heat_rank <= 3 %}bg-red-500 text-white
+                        {% elif s.heat_rank <= 6 %}bg-orange-400 text-white
+                        {% elif s.heat_rank <= 10 %}bg-yellow-400 text-white
+                        {% else %}bg-gray-200 text-gray-500{% endif %}">
+                        {{ s.heat_rank }}
+                    </span>
+                    {% else %}
+                    <span class="text-gray-300">--</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-lg border p-12 text-center text-gray-400">
+    <p class="text-lg mb-2">暂无板块数据</p>
+    <p class="text-sm">请先点击下方"更新板块信息"按钮生成板块分析数据</p>
+</div>
+{% endif %}

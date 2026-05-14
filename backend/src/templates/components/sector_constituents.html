@@ -1,0 +1,46 @@
+<div class="bg-white rounded-lg border overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+            <tr>
+                <th class="text-left px-3 py-3 font-medium text-gray-600 w-24">代码</th>
+                <th class="text-left px-2 py-3 font-medium text-gray-600">名称</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">最新价</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">涨跌幅</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-20">市盈率</th>
+                <th class="text-right px-2 py-3 font-medium text-gray-600 w-24">市值(亿)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if stocks %}
+                {% for s in stocks %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="px-3 py-2.5">
+                        <a href="/stocks/{{ s.stock_code }}"
+                           class="text-blue-600 hover:underline font-mono text-xs">{{ s.stock_code }}</a>
+                    </td>
+                    <td class="px-2 py-2.5 text-gray-800 text-xs">{{ s.stock_name }}</td>
+                    <td class="px-2 py-2.5 text-right font-mono text-xs">
+                        {{ "%.2f"|format(s.latest_price) if s.latest_price else '-' }}
+                    </td>
+                    <td class="px-2 py-2.5 text-right font-mono text-xs
+                        {% if s.change_pct is not none %}
+                            {% if s.change_pct > 0 %}text-red-600{% elif s.change_pct < 0 %}text-green-600{% else %}text-gray-500{% endif %}
+                        {% endif %}">
+                        {{ ("%+.2f%%"|format(s.change_pct)) if s.change_pct is not none else '-' }}
+                    </td>
+                    <td class="px-2 py-2.5 text-right font-mono text-xs text-gray-700">
+                        {{ "%.2f"|format(s.pe_ratio) if s.pe_ratio else '-' }}
+                    </td>
+                    <td class="px-2 py-2.5 text-right font-mono text-xs text-gray-700">
+                        {{ "%.2f"|format(s.market_cap) if s.market_cap else '-' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="6" class="px-4 py-12 text-center text-gray-400">暂无成分股</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>

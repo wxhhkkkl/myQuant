@@ -1,0 +1,76 @@
+{% if result.error and not result.news_sentiment and not result.comment_sentiment %}
+<div class="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-700">
+    {{ result.error }}
+</div>
+{% else %}
+
+<!-- AI Analysis Results -->
+<div class="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3 mb-4">
+    <h4 class="text-sm font-semibold text-purple-800">AI 舆情分析结果</h4>
+
+    {% if result.news_sentiment %}
+    {% set ns = result.news_sentiment %}
+    {% set ncolor = 'text-green-700 bg-green-100 border-green-300' if ns.score > 2 else ('text-red-700 bg-red-100 border-red-300' if ns.score < -2 else 'text-gray-700 bg-gray-100 border-gray-300') %}
+    <div class="bg-white rounded border p-3">
+        <div class="text-xs text-gray-400 mb-1">新闻情绪评分</div>
+        <div class="flex items-center gap-2 mb-1">
+            <span class="text-2xl font-bold {% if ns.score > 2 %}text-green-600{% elif ns.score < -2 %}text-red-600{% else %}text-gray-600{% endif %}">{{ ns.score }}</span>
+            <span class="text-xs px-2 py-0.5 rounded border {{ ncolor }}">{{ ns.label }}</span>
+        </div>
+        {% if ns.summary %}
+        <p class="text-xs text-gray-500">{{ ns.summary }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if result.comment_sentiment %}
+    {% set cs = result.comment_sentiment %}
+    {% set ccolor = 'text-green-700 bg-green-100 border-green-300' if cs.score > 2 else ('text-red-700 bg-red-100 border-red-300' if cs.score < -2 else 'text-gray-700 bg-gray-100 border-gray-300') %}
+    <div class="bg-white rounded border p-3">
+        <div class="text-xs text-gray-400 mb-1">网友评论情绪评分</div>
+        <div class="flex items-center gap-2 mb-1">
+            <span class="text-2xl font-bold {% if cs.score > 2 %}text-green-600{% elif cs.score < -2 %}text-red-600{% else %}text-gray-600{% endif %}">{{ cs.score }}</span>
+            <span class="text-xs px-2 py-0.5 rounded border {{ ccolor }}">{{ cs.label }}</span>
+        </div>
+        {% if cs.summary %}
+        <p class="text-xs text-gray-500">{{ cs.summary }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Latest News -->
+{% if result.news_items %}
+<div class="mb-4">
+    <h4 class="text-sm font-semibold text-gray-700 mb-2">近期新闻 ({{ result.news_items|length }}条)</h4>
+    <div class="space-y-2">
+        {% for n in result.news_items[:8] %}
+        <div class="border-b pb-2 last:border-0 text-sm">
+            <a href="{{ n.url or '#' }}" class="text-blue-700 hover:underline" target="_blank">{{ n.title }}</a>
+            <div class="text-xs text-gray-400 mt-0.5">{{ n.source }} · {{ n.pub_time }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Guba Forum Posts -->
+{% if result.guba_posts %}
+<div class="mb-4">
+    <h4 class="text-sm font-semibold text-gray-700 mb-2">股吧网友评论 ({{ result.guba_posts|length }}条)</h4>
+    <div class="space-y-2">
+        {% for p in result.guba_posts[:10] %}
+        <div class="border-b pb-2 last:border-0 text-sm">
+            <p class="text-gray-700">{{ p.title }}</p>
+            <div class="text-xs text-gray-400 mt-0.5">
+                {{ p.user_nickname }} · {{ p.pub_time }}
+                {% if p.click_count %}<span class="ml-2">阅读 {{ p.click_count }}</span>{% endif %}
+                {% if p.comment_count %}<span class="ml-2">评论 {{ p.comment_count }}</span>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endif %}

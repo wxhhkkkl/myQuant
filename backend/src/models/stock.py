@@ -9,6 +9,7 @@ class Stock:
     stock_name: str
     industry: Optional[str] = None
     sub_industry: Optional[str] = None
+    sub_sub_industry: Optional[str] = None
     exchange: Optional[str] = None
     list_date: Optional[str] = None
     is_active: bool = True
@@ -22,6 +23,7 @@ class Stock:
                     stock_name VARCHAR(50) NOT NULL,
                     industry VARCHAR(50),
                     sub_industry VARCHAR(50),
+                    sub_sub_industry VARCHAR(50),
                     exchange VARCHAR(10),
                     list_date DATE,
                     is_active BOOLEAN DEFAULT 1
@@ -30,14 +32,14 @@ class Stock:
 
     @staticmethod
     def upsert(code: str, name: str, industry: str = None,
-               sub_industry: str = None, exchange: str = None,
-               list_date: str = None):
+               sub_industry: str = None, sub_sub_industry: str = None,
+               exchange: str = None, list_date: str = None):
         with get_db() as conn:
             conn.execute("""
                 INSERT OR REPLACE INTO stocks (stock_code, stock_name, industry,
-                    sub_industry, exchange, list_date, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, 1)
-            """, (code, name, industry, sub_industry, exchange, list_date))
+                    sub_industry, sub_sub_industry, exchange, list_date, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            """, (code, name, industry, sub_industry, sub_sub_industry, exchange, list_date))
 
     @staticmethod
     def search(keyword: str) -> list:

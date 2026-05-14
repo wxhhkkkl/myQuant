@@ -38,6 +38,8 @@ def sync_valuation():
                 eps=float(info.get("基本每股收益", 0)) if info.get("基本每股收益") else None,
                 high_52w=float(info.get("52周最高", 0)) if info.get("52周最高") else None,
                 low_52w=float(info.get("52周最低", 0)) if info.get("52周最低") else None,
+                dividend_yield=float(info.get("股息率", 0)) if info.get("股息率") else None,
+                book_value_per_share=float(info.get("每股净资产", 0)) if info.get("每股净资产") else None,
             )
         except Exception as e:
             logger.warning(f"Valuation sync failed for {code}: {e}")

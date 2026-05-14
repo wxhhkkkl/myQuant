@@ -1,27 +1,69 @@
-<div class="space-y-4">
+<div class="space-y-4" x-data="{ selectedIndustry: '{{ sector.industry or '' }}', selectedLevel: '一级', selectedLabel: '{{ sector.industry or '' }}' }">
     <h3 class="text-lg font-semibold text-gray-700">板块信息</h3>
 
     {% if sector %}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="p-4 bg-blue-50 rounded-lg">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="p-4 bg-blue-50 rounded-lg cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+             :class="selectedLevel === '一级' ? 'ring-2 ring-blue-500 shadow' : ''"
+             @click="
+                selectedIndustry = '{{ sector.industry or '' }}';
+                selectedLevel = '一级';
+                selectedLabel = '{{ sector.industry or '未知' }}';
+                htmx.ajax('GET', '/api/stocks/same-industry/' + encodeURIComponent(selectedIndustry), {target: '#same-industry-container'});
+             ">
             <div class="text-xs text-blue-400">申万一级行业</div>
             <div class="text-lg font-medium text-blue-900">{{ sector.industry or '未知' }}</div>
         </div>
-        <div class="p-4 bg-green-50 rounded-lg">
+        {% if sector.sub_industry %}
+        <div class="p-4 bg-green-50 rounded-lg cursor-pointer hover:ring-2 hover:ring-green-400 transition-all"
+             :class="selectedLevel === '二级' ? 'ring-2 ring-green-500 shadow' : ''"
+             @click="
+                selectedIndustry = '{{ sector.sub_industry }}';
+                selectedLevel = '二级';
+                selectedLabel = '{{ sector.sub_industry }}';
+                htmx.ajax('GET', '/api/stocks/same-industry/' + encodeURIComponent(selectedIndustry), {target: '#same-industry-container'});
+             ">
             <div class="text-xs text-green-400">申万二级行业</div>
             <div class="text-lg font-medium text-green-900">{{ sector.sub_industry or '未知' }}</div>
         </div>
+        {% else %}
+        <div class="p-4 bg-green-50 rounded-lg opacity-50">
+            <div class="text-xs text-green-400">申万二级行业</div>
+            <div class="text-lg font-medium text-green-900">未知</div>
+        </div>
+        {% endif %}
+        {% if sector.sub_sub_industry %}
+        <div class="p-4 bg-purple-50 rounded-lg cursor-pointer hover:ring-2 hover:ring-purple-400 transition-all"
+             :class="selectedLevel === '三级' ? 'ring-2 ring-purple-500 shadow' : ''"
+             @click="
+                selectedIndustry = '{{ sector.sub_sub_industry }}';
+                selectedLevel = '三级';
+                selectedLabel = '{{ sector.sub_sub_industry }}';
+                htmx.ajax('GET', '/api/stocks/same-industry/' + encodeURIComponent(selectedIndustry), {target: '#same-industry-container'});
+             ">
+            <div class="text-xs text-purple-400">申万三级行业</div>
+            <div class="text-lg font-medium text-purple-900">{{ sector.sub_sub_industry or '未知' }}</div>
+        </div>
+        {% else %}
+        <div class="p-4 bg-purple-50 rounded-lg opacity-50">
+            <div class="text-xs text-purple-400">申万三级行业</div>
+            <div class="text-lg font-medium text-purple-900">未知</div>
+        </div>
+        {% endif %}
     </div>
 
-    {% if sector.industry %}
     <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-        <h4 class="text-sm font-medium text-gray-600 mb-2">同行业股票</h4>
-        <p class="text-xs text-gray-400" hx-get="/api/stocks/search?q={{ sector.industry }}"
-           hx-trigger="load" hx-target="this">
-            加载中...
-        </p>
+        <h4 class="text-sm font-medium text-gray-600 mb-2">
+            同行业股票
+            <span class="text-xs text-gray-400 ml-1" x-text="'(' + selectedLevel + ': ' + selectedLabel + ')'"></span>
+        </h4>
+        <div id="same-industry-container"
+             hx-get="/api/stocks/same-industry/{{ sector.industry | urlencode }}"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <p class="text-xs text-gray-400">加载中...</p>
+        </div>
     </div>
-    {% endif %}
     {% else %}
     <p class="text-gray-400 text-sm">暂无板块数据</p>
     {% endif %}

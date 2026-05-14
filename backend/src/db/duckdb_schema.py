@@ -67,6 +67,20 @@ def init_schema():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sector_trend (
+            sector_name VARCHAR NOT NULL,
+            trade_date  DATE NOT NULL,
+            open        DOUBLE,
+            high        DOUBLE,
+            low         DOUBLE,
+            close       DOUBLE,
+            stock_count INTEGER,
+            PRIMARY KEY (sector_name, trade_date)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sector_trend_date ON sector_trend(trade_date)")
+
     conn.execute("CREATE SEQUENCE IF NOT EXISTS bt_trades_seq")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS backtest_trades (

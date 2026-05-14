@@ -2,10 +2,12 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from backend.src.templates import templates
+from backend.src.models.sentiment_news import SentimentCache
 from backend.src.services.data_service import (
     get_stock_list, get_kline, get_financials, get_sector_info,
     get_valuation, get_news, get_stock_list_with_quotes,
     get_weekly_kline, get_monthly_kline, get_quote,
+    analyze_stock_sentiment, get_same_industry_stocks, get_industry_list,
 )
 from backend.src.services.ai_screening import call_deepseek
 from backend.src.models.stock import Stock
@@ -23,33 +25,42 @@ async def search_stocks(q: str = Query(default="", min_length=0)):
 @router.get("/api/stocks/list")
 async def stock_list(page: int = Query(1, ge=1), per_page: int = Query(50, ge=1, le=200),
                      sort_by: str = Query("stock_code"), sort_order: str = Query("asc"),
-                     keyword: str = Query(""), watchlist_only: bool = Query(False)):
+                     keyword: str = Query(""), watchlist_only: bool = Query(False),
+                     industry: str = Query("")):
     if sort_by not in ("stock_code", "latest_price", "change_pct"):
         sort_by = "stock_code"
     if sort_order not in ("asc", "desc"):
         sort_order = "asc"
     return get_stock_list_with_quotes(page=page, per_page=per_page,
                                        sort_by=sort_by, sort_order=sort_order,
-                                       keyword=keyword, watchlist_only=watchlist_only)
+                                       keyword=keyword, watchlist_only=watchlist_only,
+                                       industry=industry)
 
 
 @router.get("/stocks", response_class=HTMLResponse)
 async def stocks_page(request: Request):
-    return templates.TemplateResponse(request, "pages/stocks.html")
+    from datetime import date
+    industries = get_industry_list()
+    return templates.TemplateResponse(request, "pages/stocks.html", {
+        "today": date.today().isoformat(),
+        "industries": industries,
+    })
 
 
 @router.get("/stocks/table", response_class=HTMLResponse)
 async def stocks_table(request: Request,
                         page: int = Query(1, ge=1), per_page: int = Query(50, ge=1, le=200),
                         sort_by: str = Query("stock_code"), sort_order: str = Query("asc"),
-                        keyword: str = Query(""), watchlist_only: bool = Query(False)):
+                        keyword: str = Query(""), watchlist_only: bool = Query(False),
+                        industry: str = Query("")):
     if sort_by not in ("stock_code", "latest_price", "change_pct"):
         sort_by = "stock_code"
     if sort_order not in ("asc", "desc"):
         sort_order = "asc"
     result = get_stock_list_with_quotes(page=page, per_page=per_page,
                                          sort_by=sort_by, sort_order=sort_order,
-                                         keyword=keyword, watchlist_only=watchlist_only)
+                                         keyword=keyword, watchlist_only=watchlist_only,
+                                         industry=industry)
     return templates.TemplateResponse(request, "components/stock_table.html", {
         "stocks": result["stocks"],
         "pagination": result["pagination"],
@@ -57,6 +68,7 @@ async def stocks_table(request: Request,
         "sort_order": sort_order,
         "keyword": keyword,
         "watchlist_only": watchlist_only,
+        "industry": industry,
         "sort_icon": lambda field: "▲" if sort_by == field and sort_order == "asc" else ("▼" if sort_by == field and sort_order == "desc" else ""),
         "next_sort": lambda field: "desc" if sort_by != field or sort_order == "asc" else "asc",
     })
@@ -147,8 +159,9 @@ async def financials_tab(request: Request, code: str):
 async def sentiment_tab(request: Request, code: str):
     _stock_or_404(code)
     news = get_news(code)
+    cached = SentimentCache.get(code)
     return templates.TemplateResponse(request, "components/sentiment.html", {
-        "news": news, "code": code
+        "news": news, "code": code, "cached": cached
     })
 
 
@@ -158,6 +171,23 @@ async def sector_tab(request: Request, code: str):
     sector = get_sector_info(code)
     return templates.TemplateResponse(request, "components/sector.html", {
         "sector": sector, "code": code
+    })
+
+
+@router.get("/api/stocks/same-industry/{industry}", response_class=HTMLResponse)
+async def same_industry_stocks(request: Request, industry: str):
+    stocks = get_same_industry_stocks(industry)
+    return templates.TemplateResponse(request, "components/same_industry.html", {
+        "stocks": stocks, "industry": industry,
+    })
+
+
+@router.post("/api/stocks/{code}/sentiment-analysis", response_class=HTMLResponse)
+async def sentiment_analysis(request: Request, code: str):
+    _stock_or_404(code)
+    result = analyze_stock_sentiment(code)
+    return templates.TemplateResponse(request, "components/sentiment_analysis.html", {
+        "code": code, "result": result,
     })
 
 

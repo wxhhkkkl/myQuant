@@ -77,6 +77,7 @@ from backend.src.api.backtest import router as backtest_router
 from backend.src.api.trading import router as trading_router
 from backend.src.api.account import router as account_router
 from backend.src.api.data import router as data_router
+from backend.src.api.sectors import router as sectors_router
 
 app.include_router(stocks_router)
 app.include_router(watchlist_router)
@@ -85,6 +86,7 @@ app.include_router(backtest_router)
 app.include_router(trading_router)
 app.include_router(account_router)
 app.include_router(data_router)
+app.include_router(sectors_router)
 
 
 @app.get("/")

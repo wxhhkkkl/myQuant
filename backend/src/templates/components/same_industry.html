@@ -1,0 +1,22 @@
+{% if stocks %}
+<div class="max-h-48 overflow-y-auto">
+    <div class="grid grid-cols-2 gap-1">
+        {% for s in stocks %}
+        <a href="/stocks/{{ s.stock_code }}"
+           class="flex items-center justify-between px-2 py-1 rounded text-sm hover:bg-gray-100">
+            <span>
+                <span class="text-gray-700">{{ s.stock_name }}</span>
+                <span class="text-gray-400 text-xs ml-1">{{ s.stock_code }}</span>
+            </span>
+            {% if s.sub_sub_industry %}
+            <span class="text-xs text-gray-400">{{ s.sub_sub_industry }}</span>
+            {% elif s.sub_industry %}
+            <span class="text-xs text-gray-400">{{ s.sub_industry }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<p class="text-gray-400 text-sm">暂无同行业股票</p>
+{% endif %}

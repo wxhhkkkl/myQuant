@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ sector_name }} - 板块详情 - myQuant{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Back link -->
+    <a href="/sector-analysis" class="text-sm text-blue-600 hover:underline mb-4 inline-block">&larr; 返回板块分析</a>
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-4">
+        <h2 class="text-xl font-bold text-gray-800">{{ sector_name }}</h2>
+        {% if snap %}
+        {% if snap.valuation_level == '高估' %}
+        <span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">{{ snap.valuation_level }}</span>
+        {% elif snap.valuation_level == '低估' %}
+        <span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">{{ snap.valuation_level }}</span>
+        {% elif snap.valuation_level == '适中' %}
+        <span class="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ snap.valuation_level }}</span>
+        {% endif %}
+        <span class="text-xs text-gray-400">{{ snap.constituent_count }} 只成分股</span>
+        {% endif %}
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="mb-6">
+        {% include "components/sector_trend.html" %}
+    </div>
+
+    <!-- Constituent Stocks -->
+    <div>
+        <h3 class="text-lg font-semibold text-gray-700 mb-3">成分股</h3>
+        <div x-data="{}" x-init="htmx.ajax('GET', '/api/sectors/{{ sector_name | urlencode }}/constituents', {target: '#constituents-container'})">
+            <div id="constituents-container">
+                <div class="text-center text-gray-400 py-8">
+                    <span class="inline-block w-5 h-5 border-2 border-gray-300 border-t-transparent rounded-full animate-spin mr-2"></span>
+                    加载中...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

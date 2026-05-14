@@ -2,33 +2,56 @@
     <h3 class="text-lg font-semibold text-gray-700">财务报表</h3>
 
     {% if reports %}
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="border-b text-left text-gray-400">
-                    <th class="py-2 pr-4">报告期</th>
-                    <th class="py-2 pr-4">类型</th>
-                    <th class="py-2 pr-4 text-right">营收(亿)</th>
-                    <th class="py-2 pr-4 text-right">净利润(亿)</th>
-                    <th class="py-2 pr-4 text-right">ROE(%)</th>
-                    <th class="py-2 pr-4 text-right">负债率(%)</th>
-                    <th class="py-2 pr-4 text-right">EPS</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for r in reports %}
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="py-2 pr-4">{{ r.report_period }}</td>
-                    <td class="py-2 pr-4">{{ r.report_type or '--' }}</td>
-                    <td class="py-2 pr-4 text-right">{{ r.revenue or '--' }}</td>
-                    <td class="py-2 pr-4 text-right">{{ r.net_profit or '--' }}</td>
-                    <td class="py-2 pr-4 text-right">{{ r.roe or '--' }}</td>
-                    <td class="py-2 pr-4 text-right">{{ r.debt_ratio or '--' }}</td>
-                    <td class="py-2 pr-4 text-right">{{ r.eps or '--' }}</td>
-                </tr>
+    <!-- Column headers -->
+    <div class="text-xs text-gray-400 flex px-4">
+        <span class="w-16"></span>
+        <div class="flex-1 grid grid-cols-5 gap-2">
+            <span>类型</span>
+            <span class="text-right">营收(亿)</span>
+            <span class="text-right">净利润(亿)</span>
+            <span class="text-right">ROE(%)</span>
+            <span class="text-right">EPS</span>
+        </div>
+    </div>
+
+    <div class="space-y-3">
+        {% for year_group in reports %}
+        <div class="border rounded-lg overflow-hidden">
+            <!-- Annual report row -->
+            <div class="bg-gray-50 px-4 py-2.5 flex items-center">
+                <span class="text-sm font-semibold text-gray-700 w-16">{{ year_group.year }}</span>
+                {% if year_group.annual %}
+                <div class="flex-1 grid grid-cols-5 gap-2 text-xs">
+                    <span class="text-gray-500 font-medium">年报</span>
+                    <span class="text-right text-gray-700">{{ "%.2f"|format(year_group.annual.revenue) if year_group.annual.revenue else '--' }}</span>
+                    <span class="text-right text-gray-700">{{ "%.2f"|format(year_group.annual.net_profit) if year_group.annual.net_profit else '--' }}</span>
+                    <span class="text-right text-gray-700">{{ "%.2f"|format(year_group.annual.roe) if year_group.annual.roe else '--' }}</span>
+                    <span class="text-right text-gray-700">{{ "%.2f"|format(year_group.annual.eps) if year_group.annual.eps else '--' }}</span>
+                </div>
+                {% else %}
+                <span class="text-xs text-gray-300 flex-1">无年报数据</span>
+                {% endif %}
+            </div>
+
+            <!-- Quarterly report rows -->
+            {% if year_group.quarters %}
+            <div class="divide-y">
+                {% for q in year_group.quarters %}
+                <div class="px-4 py-2 flex items-center hover:bg-blue-50/50">
+                    <span class="text-xs text-gray-400 w-16">{{ q.report_period }}</span>
+                    <div class="flex-1 grid grid-cols-5 gap-2 text-xs">
+                        <span class="text-gray-400">{{ q.report_type or '季报' }}</span>
+                        <span class="text-right text-gray-600">{{ "%.2f"|format(q.revenue) if q.revenue else '--' }}</span>
+                        <span class="text-right text-gray-600">{{ "%.2f"|format(q.net_profit) if q.net_profit else '--' }}</span>
+                        <span class="text-right text-gray-600">{{ "%.2f"|format(q.roe) if q.roe else '--' }}</span>
+                        <span class="text-right text-gray-600">{{ "%.2f"|format(q.eps) if q.eps else '--' }}</span>
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
     </div>
     {% else %}
     <p class="text-gray-400 text-sm">暂无财务数据</p>

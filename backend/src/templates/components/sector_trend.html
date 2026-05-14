@@ -1,0 +1,94 @@
+<div x-data="{
+    period: 'daily',
+    timeRange: '1y',
+    chart: null,
+
+    async loadChart() {
+        const resp = await fetch(`/api/sectors/{{ sector_name | urlencode }}/trend?period=${this.period}&time_range=${this.timeRange}`);
+        const result = await resp.json();
+        if (!result.data || result.data.length === 0) {
+            document.getElementById('trend-chart-container').innerHTML =
+                '<div class=\'text-center text-gray-400 py-12\'>暂无趋势数据</div>';
+            return;
+        }
+        this.$nextTick(() => this.renderChart(result));
+    },
+
+    renderChart(result) {
+        const el = document.getElementById('trend-chart');
+        if (!el) return;
+        if (this.chart) this.chart.dispose();
+        this.chart = echarts.init(el);
+
+        const candlestickData = result.data.map(d => [d[1], d[2], d[3], d[4]]);
+        const dates = result.data.map(d => d[0]);
+
+        this.chart.setOption({
+            title: {
+                text: '{{ sector_name }} 板块趋势',
+                subtext: `成分股 ${result.stock_count} 只 · 等权合成`,
+                left: 'center',
+                textStyle: { fontSize: 14 },
+            },
+            tooltip: { trigger: 'axis' },
+            grid: { left: 60, right: 20, top: 60, bottom: 40 },
+            xAxis: {
+                type: 'category',
+                data: dates,
+                axisLabel: { formatter: v => v.substring(5) },
+            },
+            yAxis: { type: 'value', scale: true },
+            series: [{
+                type: 'candlestick',
+                data: candlestickData,
+                itemStyle: {
+                    color: '#ef4444',
+                    color0: '#22c55e',
+                    borderColor: '#ef4444',
+                    borderColor0: '#22c55e',
+                },
+            }],
+        });
+
+        window.addEventListener('resize', () => this.chart && this.chart.resize());
+    }
+}" x-init="loadChart()">
+
+    <!-- Controls -->
+    <div class="flex items-center gap-4 mb-3">
+        <div class="flex items-center gap-1 text-sm">
+            <span class="text-gray-500">周期:</span>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="period === 'daily' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="period = 'daily'; loadChart()">日线</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="period === 'weekly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="period = 'weekly'; loadChart()">周线</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="period === 'monthly' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="period = 'monthly'; loadChart()">月线</button>
+        </div>
+
+        <div class="flex items-center gap-1 text-sm">
+            <span class="text-gray-500">范围:</span>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '1m' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '1m'; loadChart()">1月</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '3m' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '3m'; loadChart()">3月</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '6m' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '6m'; loadChart()">6月</button>
+            <button class="px-2 py-1 rounded text-xs"
+                    :class="timeRange === '1y' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+                    @click="timeRange = '1y'; loadChart()">1年</button>
+        </div>
+    </div>
+
+    <!-- Chart container -->
+    <div id="trend-chart-container">
+        <div id="trend-chart" style="height: 400px;"></div>
+    </div>
+
+</div>

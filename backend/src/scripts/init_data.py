@@ -63,7 +63,7 @@ def _save_stocks_from_akshare():
         if not code or not name:
             continue
         exchange = "SH" if code.startswith("6") else "SZ"
-        rows.append((code, name, exchange, "", ""))
+        rows.append((code, name, exchange, "", "", ""))
 
     with get_db() as conn:
         conn.execute("""
@@ -73,12 +73,13 @@ def _save_stocks_from_akshare():
                 exchange VARCHAR(10),
                 industry VARCHAR(50),
                 sub_industry VARCHAR(50),
+                sub_sub_industry VARCHAR(50),
                 is_active INTEGER DEFAULT 1
             )
         """)
         conn.executemany("""
-            INSERT INTO stocks (stock_code, stock_name, exchange, industry, sub_industry)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO stocks (stock_code, stock_name, exchange, industry, sub_industry, sub_sub_industry)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(stock_code) DO UPDATE SET
                 stock_name = excluded.stock_name,
                 exchange = excluded.exchange
