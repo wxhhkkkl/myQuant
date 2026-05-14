@@ -38,6 +38,26 @@ class QuantModel:
         return [dict(r) for r in rows]
 
     @staticmethod
+    def register_defaults():
+        """Seed built-in models. Called on app startup."""
+        models = [
+            {
+                "model_name": "ma_cross",
+                "display_name": "双均线模型",
+                "description": "基于快慢两条均线的交叉信号进行买卖决策。当快线（短期均线）上穿慢线（长期均线）时产生金叉买入信号，快线下穿慢线时产生死叉卖出信号。适合趋势跟踪，在单边行情中表现较好。",
+                "default_params": {"short": 5, "long": 20, "position_pct": 100},
+            },
+        ]
+        for m in models:
+            if not QuantModel.get(m["model_name"]):
+                QuantModel.register(
+                    model_name=m["model_name"],
+                    display_name=m["display_name"],
+                    description=m["description"],
+                    default_params=m["default_params"],
+                )
+
+    @staticmethod
     def get(model_name: str) -> dict:
         with get_db() as conn:
             row = conn.execute(

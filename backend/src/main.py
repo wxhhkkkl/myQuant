@@ -18,12 +18,7 @@ def _seed_models():
     """Register built-in quant models on first startup."""
     from backend.src.models.quant_model import QuantModel
     QuantModel.create_table()
-    QuantModel.register(
-        model_name="ma_cross",
-        display_name="双均线模型",
-        description="MA5/MA20 黄金交叉买入，死亡交叉卖出。经典趋势跟踪策略。",
-        default_params={"short": 5, "long": 20},
-    )
+    QuantModel.register_defaults()
 
 
 @asynccontextmanager

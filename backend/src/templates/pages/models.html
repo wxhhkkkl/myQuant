@@ -4,12 +4,35 @@
 {% block content %}
 <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800">量化模型</h1>
-    <p class="text-gray-500 mt-1">选择模型并配置参数</p>
+    <p class="text-gray-500 mt-1">选择量化模型，配置参数后查看交易信号</p>
 </div>
 
-<div id="model-list" hx-get="/api/models" hx-trigger="load" hx-target="this">
-    <p class="text-gray-400 text-sm">加载中...</p>
+{% if models %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for m in models %}
+    <a href="/models/{{ m.model_name }}"
+       class="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow block">
+        <div class="flex items-start justify-between mb-3">
+            <h3 class="text-lg font-semibold text-gray-800">{{ m.display_name }}</h3>
+            <span class="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">内置</span>
+        </div>
+        <p class="text-sm text-gray-500 leading-relaxed mb-3">{{ m.description }}</p>
+        {% if m.default_params %}
+        <div class="flex flex-wrap gap-2">
+            {% for key, value in m.default_params.items() %}
+            <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded">
+                {{ key }}={{ value }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </a>
+    {% endfor %}
 </div>
-
-<div id="model-detail" class="mt-6"></div>
+{% else %}
+<div class="bg-white rounded-lg border p-12 text-center text-gray-400">
+    <p class="text-lg mb-2">暂无量化模型</p>
+    <p class="text-sm">系统正在初始化内置模型</p>
+</div>
+{% endif %}
 {% endblock %}

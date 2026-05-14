@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-specs/003-sector-analysis/plan.md
+specs/004-quant-models/plan.md
 <!-- SPECKIT END -->
 # CLAUDE.md
 
