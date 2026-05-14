@@ -20,7 +20,7 @@
         if (this.chart) this.chart.dispose();
         this.chart = echarts.init(el);
 
-        const candlestickData = result.data.map(d => [d[1], d[2], d[3], d[4]]);
+        const candlestickData = result.data.map(d => [d[1], d[4], d[3], d[2]]);
         const dates = result.data.map(d => d[0]);
 
         this.chart.setOption({

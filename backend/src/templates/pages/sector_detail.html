@@ -21,6 +21,46 @@
         {% endif %}
     </div>
 
+    <!-- Sector Overview Card -->
+    {% if snap %}
+    <div class="bg-white rounded-lg border p-4 mb-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <div>
+            <span class="text-gray-400">成分股数量</span>
+            <p class="font-semibold text-gray-800">{{ snap.constituent_count }} 只</p>
+        </div>
+        <div>
+            <span class="text-gray-400">市盈率中位数</span>
+            <p class="font-semibold text-gray-800">{% if snap.pe_median %}{{ "%.1f"|format(snap.pe_median) }}{% else %}--{% endif %}</p>
+        </div>
+        <div>
+            <span class="text-gray-400">近一年行情次数</span>
+            <p class="font-semibold text-gray-800">{{ snap.movement_count_1y }} 次</p>
+        </div>
+        <div>
+            <span class="text-gray-400">热度排名</span>
+            <p class="font-semibold text-gray-800">第 {{ snap.heat_rank }} 名</p>
+        </div>
+        <div>
+            <span class="text-gray-400">近一周涨跌</span>
+            <p class="font-semibold {% if snap.change_pct_1w is not none %}{% if snap.change_pct_1w > 0 %}text-red-600{% elif snap.change_pct_1w < 0 %}text-green-600{% else %}text-gray-600{% endif %}{% endif %}">
+                {% if snap.change_pct_1w is not none %}{{ "%+.2f%%"|format(snap.change_pct_1w) }}{% else %}--{% endif %}
+            </p>
+        </div>
+        <div>
+            <span class="text-gray-400">上涨比例</span>
+            <p class="font-semibold text-gray-800">{% if snap.up_ratio is not none %}{{ "%.1f%%"|format(snap.up_ratio * 100) }}{% else %}--{% endif %}</p>
+        </div>
+        <div>
+            <span class="text-gray-400">成交量变化</span>
+            <p class="font-semibold text-gray-800">{% if snap.vol_change_pct is not none %}{{ "%+.1f%%"|format(snap.vol_change_pct) }}{% else %}--{% endif %}</p>
+        </div>
+        <div>
+            <span class="text-gray-400">板块级别</span>
+            <p class="font-semibold text-gray-800">{{ snap.sector_level or '--' }}</p>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Trend Chart -->
     <div class="mb-6">
         {% include "components/sector_trend.html" %}

@@ -5,9 +5,28 @@
 <div x-data="{
     activeTab: 'overview',
     lastUpdated: '{{ last_updated or '' }}',
+    levels: ['一级', '二级', '三级'],
+    levelsParam: '一级,二级,三级',
+
+    toggleLevel(level) {
+        const idx = this.levels.indexOf(level);
+        if (idx >= 0) this.levels.splice(idx, 1);
+        else this.levels.push(level);
+        this.levelsParam = this.levels.join(',');
+        window.dispatchEvent(new CustomEvent('sector-levels-changed', {
+            detail: { levelsParam: this.levelsParam }
+        }));
+        if (this.activeTab === 'overview') {
+            this.$nextTick(() => this.refreshOverview());
+        }
+    },
+
+    refreshOverview() {
+        htmx.ajax('GET', `/api/sectors/list?sort_by=heat_rank&sort_order=asc&levels=${encodeURIComponent(this.levelsParam)}`, {target: '#sector-table-container'});
+    }
 }" @sector-update-done.window="
     lastUpdated = $event.detail.last_updated || '';
-    htmx.ajax('GET', '/api/sectors/list?sort_by=heat_rank&sort_order=asc', {target: '#sector-table-container'});
+    refreshOverview();
 ">
 
     <!-- Page Header -->
@@ -32,23 +51,37 @@
     <!-- Refresh Status -->
     <div id="sector-refresh-status" class="mb-4"></div>
 
-    <!-- Tab Bar -->
-    <div class="flex border-b mb-4">
-        <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-                :class="activeTab === 'overview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                @click="activeTab = 'overview'">
-            板块概览
-        </button>
-        <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-                :class="activeTab === 'rotation' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
-                @click="activeTab = 'rotation'">
-            轮动分析
-        </button>
+    <!-- Tab Bar + Level Filter -->
+    <div class="flex items-center justify-between border-b mb-4">
+        <div class="flex">
+            <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+                    :class="activeTab === 'overview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                    @click="activeTab = 'overview'">
+                板块概览
+            </button>
+            <button class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+                    :class="activeTab === 'rotation' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                    @click="activeTab = 'rotation'">
+                轮动分析
+            </button>
+        </div>
+        <div class="flex items-center gap-2 pb-2">
+            <span class="text-xs text-gray-400">板块级别:</span>
+            <span class="text-xs cursor-pointer select-none px-2 py-0.5 rounded transition-colors"
+                  :class="levels.includes('一级') ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'"
+                  @click="toggleLevel('一级')">一级</span>
+            <span class="text-xs cursor-pointer select-none px-2 py-0.5 rounded transition-colors"
+                  :class="levels.includes('二级') ? 'bg-green-100 text-green-700 ring-1 ring-green-300' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'"
+                  @click="toggleLevel('二级')">二级</span>
+            <span class="text-xs cursor-pointer select-none px-2 py-0.5 rounded transition-colors"
+                  :class="levels.includes('三级') ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'"
+                  @click="toggleLevel('三级')">三级</span>
+        </div>
     </div>
 
     <!-- Tab: Overview -->
     <div x-show="activeTab === 'overview'" x-cloak
-         x-init="htmx.ajax('GET', '/api/sectors/list?sort_by=heat_rank&sort_order=asc', {target: '#sector-table-container'})">
+         x-init="refreshOverview()">
         <div id="sector-table-container">
             <div class="text-center text-gray-400 py-8">
                 <span class="inline-block w-5 h-5 border-2 border-gray-300 border-t-transparent rounded-full animate-spin mr-2"></span>
@@ -61,7 +94,6 @@
     <div x-show="activeTab === 'rotation'" x-cloak>
         {% include "components/sector_rotation.html" %}
     </div>
-
 
 </div>
 {% endblock %}

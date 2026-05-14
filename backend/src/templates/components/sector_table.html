@@ -6,7 +6,7 @@
                 <th class="text-left px-3 py-3 font-medium text-gray-600">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/api/sectors/list?sort_by=sector_name&sort_order={{ 'asc' if sort_by != 'sector_name' or sort_order == 'desc' else 'desc' }}"
+                       hx-get="/api/sectors/list?sort_by=sector_name&sort_order={{ 'asc' if sort_by != 'sector_name' or sort_order == 'desc' else 'desc' }}&levels={{ levels|default('') }}"
                        hx-target="#sector-table-container">
                         板块名称
                     </a>
@@ -14,7 +14,7 @@
                 <th class="text-center px-3 py-3 font-medium text-gray-600 w-20">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/api/sectors/list?sort_by=valuation_level&sort_order={{ 'asc' if sort_by != 'valuation_level' or sort_order == 'desc' else 'desc' }}"
+                       hx-get="/api/sectors/list?sort_by=valuation_level&sort_order={{ 'asc' if sort_by != 'valuation_level' or sort_order == 'desc' else 'desc' }}&levels={{ levels|default('') }}"
                        hx-target="#sector-table-container">
                         估值分位
                     </a>
@@ -22,7 +22,7 @@
                 <th class="text-center px-3 py-3 font-medium text-gray-600 w-24">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/api/sectors/list?sort_by=movement_count_1y&sort_order={{ 'asc' if sort_by != 'movement_count_1y' or sort_order == 'desc' else 'desc' }}"
+                       hx-get="/api/sectors/list?sort_by=movement_count_1y&sort_order={{ 'asc' if sort_by != 'movement_count_1y' or sort_order == 'desc' else 'desc' }}&levels={{ levels|default('') }}"
                        hx-target="#sector-table-container">
                         近一年行情
                     </a>
@@ -30,7 +30,7 @@
                 <th class="text-right px-3 py-3 font-medium text-gray-600 w-24">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/api/sectors/list?sort_by=change_pct_1w&sort_order={{ 'asc' if sort_by != 'change_pct_1w' or sort_order == 'desc' else 'desc' }}"
+                       hx-get="/api/sectors/list?sort_by=change_pct_1w&sort_order={{ 'asc' if sort_by != 'change_pct_1w' or sort_order == 'desc' else 'desc' }}&levels={{ levels|default('') }}"
                        hx-target="#sector-table-container">
                         近一周涨跌
                     </a>
@@ -38,7 +38,7 @@
                 <th class="text-center px-3 py-3 font-medium text-gray-600 w-20">
                     <a href="#"
                        class="hover:text-blue-600 inline-flex items-center gap-1"
-                       hx-get="/api/sectors/list?sort_by=heat_rank&sort_order={{ 'asc' if sort_by != 'heat_rank' or sort_order == 'desc' else 'desc' }}"
+                       hx-get="/api/sectors/list?sort_by=heat_rank&sort_order={{ 'asc' if sort_by != 'heat_rank' or sort_order == 'desc' else 'desc' }}&levels={{ levels|default('') }}"
                        hx-target="#sector-table-container">
                         热度排名
                     </a>
@@ -53,6 +53,14 @@
                        class="text-blue-600 hover:underline text-xs font-medium">
                         {{ s.sector_name }}
                     </a>
+                    {% if s.sector_level %}
+                    <span class="ml-1 text-xs px-1 py-0.5 rounded
+                        {% if s.sector_level == '一级' %}bg-blue-100 text-blue-600
+                        {% elif s.sector_level == '二级' %}bg-green-100 text-green-600
+                        {% else %}bg-purple-100 text-purple-600{% endif %}">
+                        {{ s.sector_level }}
+                    </span>
+                    {% endif %}
                     {% if not s.trend_available %}
                     <span class="ml-1 text-xs bg-yellow-100 text-yellow-700 px-1 py-0.5 rounded">数据不足</span>
                     {% endif %}

@@ -3,89 +3,104 @@
     granularity: 'monthly',
     rotationData: null,
     loading: false,
+    levelsParam: '',
+    sectorCount: 0,
 
     async loadRotation() {
         this.loading = true;
-        const resp = await fetch(`/api/sectors/rotation?time_range=${this.timeRange}&granularity=${this.granularity}`);
+        const lvl = this.levelsParam || '';
+        const resp = await fetch(`/api/sectors/rotation?time_range=${this.timeRange}&granularity=${this.granularity}&levels=${encodeURIComponent(lvl)}`);
         this.rotationData = await resp.json();
+        if (this.rotationData && this.rotationData.leaders) {
+            const all = new Set(this.rotationData.leaders.flatMap(l => l.top3.map(t => t.sector)));
+            this.sectorCount = all.size;
+        }
         this.loading = false;
         this.$nextTick(() => this.renderChart());
     },
 
     renderChart() {
         const el = document.getElementById('rotation-chart');
-        if (!el || !this.rotationData) return;
+        if (!el || !this.rotationData || !this.rotationData.leaders || this.rotationData.leaders.length === 0) return;
+
+        const old = echarts.getInstanceByDom(el);
+        if (old) old.dispose();
+
         const chart = echarts.init(el);
 
         const periods = this.rotationData.periods;
         const leaders = this.rotationData.leaders;
 
-        // Build heatmap-style data: rows=sectors, cols=periods
-        const allSectors = [...new Set(leaders.flatMap(l => l.top3.map(t => t.sector)))];
+        const allSectors = [...new Set(leaders.flatMap(l => l.top3.map(t => t.sector)))].sort();
 
-        const series = allSectors.map((sector, idx) => {
-            const data = periods.map(p => {
-                const entry = leaders.find(l => l.period.startsWith(p) || l.period === p);
-                if (!entry) return null;
-                const found = entry.top3.find(t => t.sector === sector);
-                return found ? found.change_pct : null;
+        const heatData = [];
+        const maxAbs = Math.max(...leaders.flatMap(l => l.top3.map(t => Math.abs(t.change_pct))));
+
+        periods.forEach((p, xi) => {
+            const entry = leaders.find(l => l.period.startsWith(p) || l.period === p);
+            if (!entry) return;
+            entry.top3.forEach(t => {
+                const yi = allSectors.indexOf(t.sector);
+                heatData.push([xi, yi, t.change_pct]);
             });
-            return {
-                name: sector,
-                type: 'bar',
-                stack: 'total',
-                emphasis: { focus: 'series' },
-                data: data,
-            };
         });
 
         chart.setOption({
             tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
                 formatter: function(params) {
-                    let s = `<strong>${params[0].axisValue}</strong><br>`;
-                    const sorted = params.filter(p => p.value).sort((a, b) => b.value - a.value);
-                    sorted.slice(0, 3).forEach(p => {
-                        s += `${p.seriesName}: ${p.value > 0 ? '+' : ''}${p.value}%<br>`;
-                    });
-                    return s;
+                    const p = periods[params.data[0]];
+                    const s = allSectors[params.data[1]];
+                    const v = params.data[2];
+                    return `<strong>${p}</strong><br>${s}: ${v > 0 ? '+' : ''}${v}%`;
                 }
             },
-            legend: {
-                type: 'scroll',
-                orient: 'vertical',
-                right: 10,
-                top: 20,
-                textStyle: { fontSize: 11 },
-            },
-            grid: { left: 50, right: 120, top: 20, bottom: 40 },
+            grid: { left: 100, right: 60, top: 20, bottom: 60 },
             xAxis: {
                 type: 'category',
                 data: periods,
                 axisLabel: { rotate: 45, fontSize: 10 },
+                position: 'bottom',
             },
-            yAxis: { type: 'value', name: '涨跌幅(%)' },
-            series: series,
+            yAxis: {
+                type: 'category',
+                data: allSectors,
+                axisLabel: { fontSize: 11 },
+                inverse: true,
+            },
+            visualMap: {
+                min: -maxAbs,
+                max: maxAbs,
+                calculable: true,
+                orient: 'horizontal',
+                left: 'center',
+                bottom: 0,
+                inRange: { color: ['#22c55e', '#f8f8f8', '#ef4444'] },
+                text: ['涨', '跌'],
+            },
+            series: [{
+                type: 'heatmap',
+                data: heatData,
+                label: {
+                    show: true,
+                    fontSize: 10,
+                    formatter: function(params) {
+                        const v = params.data[2];
+                        return v > 0 ? '+' + v + '%' : v + '%';
+                    }
+                },
+                emphasis: {
+                    itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)' }
+                },
+            }],
         });
-
-        chart.off('click');
-        chart.on('click', function(params) {
-            const period = params.name;
-            // HTMX load period detail
-            htmx.ajax('GET', `/api/sectors/rotation?time_range=${this.timeRange}&granularity=${this.granularity}`, {
-                target: '#rotation-detail',
-                swap: 'innerHTML',
-            });
-        }.bind(this));
 
         window.addEventListener('resize', () => chart.resize());
     }
-}" x-init="loadRotation()">
+}" x-init="levelsParam = levelsParam || '一级,二级,三级'; loadRotation()"
+     @sector-levels-changed.window="levelsParam = $event.detail.levelsParam; loadRotation()">
 
     <!-- Controls -->
-    <div class="flex items-center gap-4 mb-4">
-        <!-- Time Range -->
+    <div class="flex items-center gap-4 mb-4 flex-wrap">
         <div class="flex items-center gap-1 text-sm">
             <span class="text-gray-500">时间:</span>
             <button class="px-2 py-1 rounded text-xs"
@@ -102,7 +117,6 @@
                     @click="timeRange = '1y'; loadRotation()">1年</button>
         </div>
 
-        <!-- Granularity -->
         <div class="flex items-center gap-1 text-sm">
             <span class="text-gray-500">粒度:</span>
             <button class="px-2 py-1 rounded text-xs"
@@ -119,10 +133,29 @@
         </span>
     </div>
 
-    <!-- Chart -->
-    <div id="rotation-chart" class="bg-white rounded-lg border" style="height: 400px;"></div>
+    <!-- Chart / empty state -->
+    <div class="bg-white rounded-lg border mb-6">
+        <div x-show="!rotationData || !rotationData.leaders || rotationData.leaders.length === 0"
+             class="p-12 text-center text-gray-400">
+            <p x-show="!rotationData">加载中...</p>
+            <p x-show="rotationData && (!rotationData.leaders || rotationData.leaders.length === 0)">暂无轮动数据，请先点击"更新板块信息"生成数据</p>
+        </div>
+        <div id="rotation-chart" style="height: 400px;"
+             :style="sectorCount > 0 ? 'height: ' + Math.max(300, sectorCount * 30 + 80) + 'px;' : ''"></div>
+    </div>
 
-    <!-- Period detail (click to load) -->
-    <div id="rotation-detail" class="mt-4"></div>
+    <!-- Unrotated sectors -->
+    <div x-show="rotationData && rotationData.unrotated && rotationData.unrotated.length > 0" class="bg-white rounded-lg border p-4">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2">未参与轮动的板块</h4>
+        <div class="flex flex-wrap gap-2">
+            <template x-for="s in rotationData.unrotated" :key="s.sector_name">
+                <a :href="'/sector-analysis/' + encodeURIComponent(s.sector_name)"
+                   class="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded hover:bg-gray-200">
+                    <span x-text="s.sector_name"></span>
+                    <span x-show="s.sector_level" class="ml-1 text-gray-300" x-text="s.sector_level"></span>
+                </a>
+            </template>
+        </div>
+    </div>
 
 </div>

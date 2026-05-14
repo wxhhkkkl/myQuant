@@ -137,14 +137,16 @@ def get_same_industry_stocks(industry: str, limit: int = 40) -> list:
     return [dict(r) for r in rows]
 
 
-def get_sector_list(sort_by: str = "heat_rank", sort_order: str = "asc") -> list:
+def get_sector_list(sort_by: str = "heat_rank", sort_order: str = "asc",
+                    levels: list = None) -> list:
     """Get all sector snapshots for the overview table.
 
     Falls back gracefully when no snapshot data exists (returns empty list).
     """
     from backend.src.models.sector import SectorSnapshot
     try:
-        return SectorSnapshot.all_ordered(sort_by=sort_by, sort_order=sort_order)
+        return SectorSnapshot.all_ordered(sort_by=sort_by, sort_order=sort_order,
+                                          levels=levels)
     except Exception:
         return []
 
@@ -158,7 +160,12 @@ def get_valuation(code: str) -> dict:
             WHERE stock_code = ?
             ORDER BY snap_date DESC LIMIT 1
         """, (code,)).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    d = dict(row)
+    if d.get('pe_ratio') and d['pe_ratio'] > 500:
+        d['pe_ratio'] = None
+    return d
 
 
 def get_industry_list() -> list:
@@ -264,7 +271,7 @@ def get_stock_list_with_quotes(page=1, per_page=50, sort_by='stock_code',
             "industry": s.get('industry', ''),
             "latest_price": px.get("latest_price"),
             "change_pct": px.get("change_pct"),
-            "pe_ratio": fund.get("pe_ratio"),
+            "pe_ratio": fund.get("pe_ratio") if fund.get("pe_ratio") and fund["pe_ratio"] < 500 else None,
             "dividend_yield": fund.get("dividend_yield"),
             "book_value_per_share": fund.get("book_value_per_share"),
             "in_watchlist": s['stock_code'] in wl_codes,
@@ -523,7 +530,7 @@ def get_news(code: str, limit: int = 20) -> list:
     """Get sentiment news for a stock."""
     with get_db() as conn:
         rows = conn.execute("""
-            SELECT id, title, summary, source, pub_time, sentiment
+            SELECT id, title, summary, source, pub_time, sentiment, url
             FROM sentiment_news
             WHERE stock_code = ?
             ORDER BY pub_time DESC
@@ -595,8 +602,9 @@ def analyze_stock_sentiment(code: str) -> dict:
             import akshare as ak
             df = ak.stock_news_em(symbol=code_short)
             if df is not None and not df.empty:
-                # Try column-name access first, fall back to position
                 cols = list(df.columns)
+                logger.info(f"akshare stock_news_em columns for {code_short}: {cols}")
+
                 def _col(row, names, fallback_idx):
                     for n in names:
                         if n in cols:
@@ -608,6 +616,7 @@ def analyze_stock_sentiment(code: str) -> dict:
                     except (IndexError, AttributeError):
                         return ""
 
+                now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 for _, row in df.head(10).iterrows():
                     title = _col(row, ["标题", "title", "名称"], 1)
                     content = _col(row, ["内容", "content", "摘要"], 2)
@@ -615,13 +624,14 @@ def analyze_stock_sentiment(code: str) -> dict:
                     source = _col(row, ["来源", "source"], 4)
                     url = _col(row, ["链接", "url", "网址"], 5)
                     if title:
+                        pt = pub_time or now_ts
                         SentimentNews.insert(code, title, content[:500] or None,
                                              source or None,
                                              url or None,
-                                             pub_time or None)
+                                             pt)
                         news_for_display.append({
                             "title": title, "summary": content[:200],
-                            "pub_time": pub_time, "source": source, "url": url,
+                            "pub_time": pt, "source": source, "url": url,
                         })
         except Exception as e:
             logger.warning(f"Failed to fetch news for {code}: {e}")

@@ -64,24 +64,41 @@ async def sector_detail_page(request: Request, sector_name: str):
 @router.get("/api/sectors/list")
 async def sector_list(request: Request,
                       sort_by: str = Query("heat_rank"),
-                      sort_order: str = Query("asc")):
+                      sort_order: str = Query("asc"),
+                      levels: str = Query("")):
     """Return sector overview table HTML fragment (HTMX-compatible)."""
     from backend.src.services.data_service import get_sector_list
-    sectors = get_sector_list(sort_by=sort_by, sort_order=sort_order)
+    level_list = [l.strip() for l in levels.split(",") if l.strip()] if levels else None
+    sectors = get_sector_list(sort_by=sort_by, sort_order=sort_order, levels=level_list)
     return templates.TemplateResponse(request, "components/sector_table.html", {
         "sectors": sectors,
         "sort_by": sort_by,
         "sort_order": sort_order,
+        "levels": levels,
     })
 
 
 @router.get("/api/sectors/rotation")
 async def sector_rotation(request: Request,
                           time_range: str = Query("1y"),
-                          granularity: str = Query("monthly")):
-    """Return sector rotation data as JSON."""
+                          granularity: str = Query("monthly"),
+                          levels: str = Query("")):
+    """Return sector rotation data as JSON, including unrotated sectors."""
     from backend.src.services.sector_service import get_rotation_data
-    data = get_rotation_data(time_range=time_range, granularity=granularity)
+    from backend.src.models.sector import SectorSnapshot
+    level_list = [l.strip() for l in levels.split(",") if l.strip()] if levels else None
+    data = get_rotation_data(time_range=time_range, granularity=granularity,
+                             levels=level_list)
+
+    # Find sectors with zero movement count (never rotated), respecting level filter
+    all_sectors = SectorSnapshot.all_ordered(sort_by="sector_name", sort_order="asc",
+                                             levels=level_list)
+    rotated_names = set()
+    for leader in data.get("leaders", []):
+        for t in leader.get("top3", []):
+            rotated_names.add(t["sector"])
+    unrotated = [s for s in all_sectors if s["sector_name"] not in rotated_names and s.get("trend_available")]
+    data["unrotated"] = unrotated
     return JSONResponse(data)
 
 

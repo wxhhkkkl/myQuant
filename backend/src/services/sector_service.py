@@ -131,18 +131,20 @@ def calc_heat_score(change_pct_1w: float | None,
 # --- Sector Trend Computation ---
 
 def _get_sectors() -> list:
-    """Get distinct industry names from all three SW levels."""
+    """Get distinct industry names from all three SW levels.
+    Returns list of (sector_name, sector_level) tuples.
+    """
     from backend.src.db.sqlite import get_db
     with get_db() as conn:
         rows = conn.execute("""
-            SELECT DISTINCT industry FROM stocks WHERE industry IS NOT NULL AND industry != ''
+            SELECT DISTINCT industry, '一级' FROM stocks WHERE industry IS NOT NULL AND industry != ''
             UNION
-            SELECT DISTINCT sub_industry FROM stocks WHERE sub_industry IS NOT NULL AND sub_industry != ''
+            SELECT DISTINCT sub_industry, '二级' FROM stocks WHERE sub_industry IS NOT NULL AND sub_industry != ''
             UNION
-            SELECT DISTINCT sub_sub_industry FROM stocks WHERE sub_sub_industry IS NOT NULL AND sub_sub_industry != ''
-            ORDER BY industry
+            SELECT DISTINCT sub_sub_industry, '三级' FROM stocks WHERE sub_sub_industry IS NOT NULL AND sub_sub_industry != ''
+            ORDER BY 1
         """).fetchall()
-    return [r[0] for r in rows]
+    return [(r[0], r[1]) for r in rows]
 
 
 def _get_sector_stock_codes(sector_name: str) -> list:
@@ -159,14 +161,14 @@ def _get_sector_stock_codes(sector_name: str) -> list:
 
 
 def compute_sector_trend(sector_name: str):
-    """Compute equal-weight sector trend K-line from daily_kline.
+    """Compute normalized equal-weight sector trend K-line.
 
-    Aggregates all constituent stocks' daily OHLC by arithmetic mean,
-    grouped by trade_date. Results are stored in DuckDB sector_trend.
-
-    Args:
-        sector_name: Shenwan first-level industry name (matches stocks.industry).
+    Each stock's price series is normalized to start at 100, then averaged
+    across all constituents per trade date.  This avoids distortion from
+    stocks with vastly different absolute prices (e.g. a 132 yuan IPO
+    joining a sector of 6-12 yuan stocks).
     """
+    from collections import defaultdict
     from backend.src.db.duckdb import db
 
     codes = _get_sector_stock_codes(sector_name)
@@ -175,48 +177,90 @@ def compute_sector_trend(sector_name: str):
         logger.warning(f"No active stocks found for sector: {sector_name}")
         return
 
-    # Compute equal-weight OHLC per trade_date
     placeholders = ", ".join(["?"] * len(codes))
-    sql = f"""
-        SELECT
-            trade_date,
-            AVG(open) AS sector_open,
-            AVG(high) AS sector_high,
-            AVG(low) AS sector_low,
-            AVG(close) AS sector_close,
-            COUNT(*) AS stock_count
+    rows = db.query(f"""
+        SELECT stock_code, trade_date, open, high, low, close
         FROM daily_kline
         WHERE stock_code IN ({placeholders})
-        GROUP BY trade_date
-        ORDER BY trade_date
-    """
+        ORDER BY stock_code, trade_date
+    """, tuple(codes)).fetchall()
+
+    # Group raw rows by stock
+    stock_series = defaultdict(list)
+    for r in rows:
+        close_val = r[5]
+        if close_val is None:
+            continue
+        try:
+            if close_val != close_val:
+                continue
+        except TypeError:
+            pass
+        stock_series[r[0]].append((r[1], r[2], r[3], r[4], r[5]))
+
+    # Normalize each stock to base 100, then aggregate per date
+    #   norm_close[t] = close[t] / close[first] * 100
+    #   sector_close[t] = mean of norm_close across stocks that have data on date t
+    date_accum = defaultdict(lambda: {"o": 0.0, "h": 0.0, "l": 0.0, "c": 0.0, "n": 0})
+
+    for code, series in stock_series.items():
+        series.sort(key=lambda x: x[0])
+        # Find first valid close as base
+        base_close = None
+        for entry in series:
+            c = entry[3]
+            if c and c > 0:
+                base_close = c
+                break
+        if base_close is None:
+            continue
+
+        factor = 100.0 / base_close
+        for entry in series:
+            trade_date, o, h, l, c = entry
+            if c is None or not (c > 0):
+                continue
+            try:
+                if c != c:
+                    continue
+            except TypeError:
+                pass
+            # Apply same factor to OHLC for consistency
+            acc = date_accum[trade_date]
+            acc["o"] += (o * factor) if (o and o > 0 and o == o) else (c * factor)
+            acc["h"] += (h * factor) if (h and h > 0 and h == h) else (c * factor)
+            acc["l"] += (l * factor) if (l and l > 0 and l == l) else (c * factor)
+            acc["c"] += c * factor
+            acc["n"] += 1
+
+    if not date_accum:
+        logger.warning(f"No valid trend data for sector: {sector_name}")
+        return
 
     conn = db.write_conn
     conn.execute("BEGIN")
     try:
-        # Delete existing data for this sector
         conn.execute(
             "DELETE FROM sector_trend WHERE sector_name = ?", (sector_name,)
         )
 
-        rows = conn.execute(sql, tuple(codes)).fetchall()
-        for row in rows:
-            # Skip rows where close is NaN (no constituent K-line data on that day)
-            close_val = row[4]
-            if close_val is None:
+        for trade_date in sorted(date_accum.keys()):
+            acc = date_accum[trade_date]
+            n = acc["n"]
+            if n == 0:
                 continue
-            try:
-                if close_val != close_val:  # NaN check
-                    continue
-            except TypeError:
-                pass
             conn.execute("""
                 INSERT INTO sector_trend (sector_name, trade_date, open, high, low, close, stock_count)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (sector_name, row[0], row[1], row[2], row[3], close_val, row[5]))
+            """, (sector_name, trade_date,
+                  round(acc["o"] / n, 4),
+                  round(acc["h"] / n, 4),
+                  round(acc["l"] / n, 4),
+                  round(acc["c"] / n, 4),
+                  n))
 
         conn.execute("COMMIT")
-        logger.info(f"Sector trend computed: {sector_name} ({len(rows)} days)")
+        logger.info(f"Sector trend computed (normalized): {sector_name} ({len(date_accum)} days)")
     except Exception:
         conn.execute("ROLLBACK")
         raise
@@ -313,15 +357,16 @@ def compute_sector_pe_and_movements(sector_name: str):
               AND is_active = 1
         """, (sector_name, sector_name, sector_name)).fetchone()[0]
 
-    pe_values = [r[0] for r in rows if r[0] and r[0] > 0]
+    pe_values = [r[0] for r in rows if r[0] and 0 < r[0] < 500]
     pe_median = sorted(pe_values)[len(pe_values) // 2] if pe_values else None
 
-    # Movement count from sector_trend
+    # Movement count from sector_trend (last 365 days)
+    start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
     trend_rows = db.query("""
         SELECT close FROM sector_trend
-        WHERE sector_name = ?
+        WHERE sector_name = ? AND trade_date >= ?
         ORDER BY trade_date
-    """, (sector_name,)).fetchall()
+    """, (sector_name, start_date)).fetchall()
 
     closes = [r[0] for r in trend_rows]
     movements = detect_movements(closes)
@@ -345,27 +390,28 @@ def compute_all_sectors() -> str:
 
     SectorSnapshot.create_table()
 
-    sectors = _get_sectors()
+    sector_entries = _get_sectors()
     snap_date = datetime.now().strftime("%Y-%m-%d")
 
-    logger.info(f"Computing sector analysis for {len(sectors)} sectors...")
+    logger.info(f"Computing sector analysis for {len(sector_entries)} sectors...")
 
     # Step 1: Compute trend for each sector
-    for i, sector in enumerate(sectors):
+    for i, (sector_name, sector_level) in enumerate(sector_entries):
         try:
-            compute_sector_trend(sector)
-            logger.info(f"[{i+1}/{len(sectors)}] Trend: {sector}")
+            compute_sector_trend(sector_name)
+            logger.info(f"[{i+1}/{len(sector_entries)}] Trend: {sector_name} ({sector_level})")
         except Exception as e:
-            logger.error(f"Trend failed for {sector}: {e}")
+            logger.error(f"Trend failed for {sector_name}: {e}")
 
     # Step 2-3: Compute PE, movements, heat for each sector
     results = []
-    for i, sector in enumerate(sectors):
+    for i, (sector_name, sector_level) in enumerate(sector_entries):
         try:
-            pe_med, move_count, const_count, trend_avail = compute_sector_pe_and_movements(sector)
-            heat, chg_1w, vol_chg, up_r = compute_sector_heat(sector)
+            pe_med, move_count, const_count, trend_avail = compute_sector_pe_and_movements(sector_name)
+            heat, chg_1w, vol_chg, up_r = compute_sector_heat(sector_name)
             results.append({
-                "sector": sector,
+                "sector": sector_name,
+                "sector_level": sector_level,
                 "pe_median": pe_med,
                 "movement_count": move_count,
                 "constituent_count": const_count,
@@ -375,12 +421,13 @@ def compute_all_sectors() -> str:
                 "vol_change_pct": vol_chg,
                 "up_ratio": up_r,
             })
-            logger.info(f"[{i+1}/{len(sectors)}] Analysis: {sector} (PE={pe_med}, "
+            logger.info(f"[{i+1}/{len(sector_entries)}] Analysis: {sector_name} ({sector_level}) PE={pe_med}, "
                         f"moves={move_count}, heat={heat})")
         except Exception as e:
-            logger.error(f"Analysis failed for {sector}: {e}")
+            logger.error(f"Analysis failed for {sector_name}: {e}")
             results.append({
-                "sector": sector,
+                "sector": sector_name,
+                "sector_level": sector_level,
                 "pe_median": None, "movement_count": 0,
                 "constituent_count": 0, "trend_available": 0,
                 "heat_score": 0.0, "change_pct_1w": None,
@@ -399,6 +446,7 @@ def compute_all_sectors() -> str:
     for r in results:
         SectorSnapshot.upsert(
             sector_name=r["sector"],
+            sector_level=r.get("sector_level", ""),
             snap_date=snap_date,
             pe_median=r["pe_median"],
             valuation_level=r["valuation_level"],
@@ -419,17 +467,20 @@ def compute_all_sectors() -> str:
 # --- Rotation Data ---
 
 def get_rotation_data(time_range: str = "1y",
-                      granularity: str = "monthly") -> dict:
+                      granularity: str = "monthly",
+                      levels: list = None) -> dict:
     """Get sector rotation data: top-3 sectors per period.
 
     Args:
         time_range: 1m, 3m, 6m, or 1y.
         granularity: 'monthly' or 'weekly'.
+        levels: Optional list of sector levels to include (e.g. ['一级', '二级']).
 
     Returns:
         {"periods": [...], "leaders": [{period, top3: [{sector, change_pct}]}]}
     """
     from backend.src.db.duckdb import db
+    from backend.src.db.sqlite import get_db
 
     range_days = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
     days = range_days.get(time_range, 365)
@@ -440,7 +491,24 @@ def get_rotation_data(time_range: str = "1y",
     else:
         date_trunc = "DATE_TRUNC('month', trade_date)"
 
-    # Use subquery approach: find first/last trade_date per period, then join to get close
+    # Build SQL with optional level filter
+    filter_clause = ""
+    params = [start_date]
+    if levels and len(levels) > 0:
+        # Get sector names matching the requested levels
+        with get_db() as conn:
+            placeholders = ",".join(["?" for _ in levels])
+            level_rows = conn.execute(
+                f"SELECT sector_name FROM sector_snapshot WHERE sector_level IN ({placeholders})",
+                levels
+            ).fetchall()
+        level_sectors = [r[0] for r in level_rows]
+        if not level_sectors:
+            return {"periods": [], "leaders": []}
+        sector_placeholders = ",".join(["?" for _ in level_sectors])
+        filter_clause = f"AND sector_name IN ({sector_placeholders})"
+        params.extend(level_sectors)
+
     rows = db.query(f"""
         WITH period_bounds AS (
             SELECT
@@ -449,7 +517,7 @@ def get_rotation_data(time_range: str = "1y",
                 MIN(trade_date) AS first_date,
                 MAX(trade_date) AS last_date
             FROM sector_trend
-            WHERE trade_date >= ?
+            WHERE trade_date >= ? {filter_clause}
             GROUP BY sector_name, period_start
         ),
         period_returns AS (
@@ -476,7 +544,7 @@ def get_rotation_data(time_range: str = "1y",
         FROM ranked
         WHERE rn <= 3
         ORDER BY period_start, rn
-    """, (start_date,)).fetchall()
+    """, tuple(params)).fetchall()
 
     # Group by period
     from collections import defaultdict
@@ -599,7 +667,7 @@ def get_sector_constituents(sector_name: str) -> list:
             "stock_name": r[1],
             "latest_price": latest_price,
             "change_pct": change_pct,
-            "pe_ratio": r[2],
+            "pe_ratio": r[2] if r[2] and r[2] < 500 else None,
             "market_cap": r[3],
         })
 
