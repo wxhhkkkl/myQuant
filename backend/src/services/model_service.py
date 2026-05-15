@@ -10,19 +10,35 @@ logger = logging.getLogger(__name__)
 
 
 def calc_ma(values: list, window: int) -> list:
-    """Calculate simple moving average. Returns list with None for first window-1 positions."""
-    result = []
-    running_sum = 0
+    """Calculate simple moving average. None values are skipped — positions with None get None MA."""
+    result = [None] * len(values)
+    valid_count = 0
+    running_sum = 0.0
     for i, v in enumerate(values):
+        if v is None:
+            continue
+        valid_count += 1
         running_sum += v
-        if i >= window:
-            running_sum -= values[i - window]
-            result.append(running_sum / window)
-        elif i == window - 1:
-            result.append(running_sum / window)
-        else:
-            result.append(None)
+        if valid_count > window:
+            # Find the window-th previous valid value to subtract
+            to_drop = _nth_prev_valid(values, i, window)
+            if to_drop is not None:
+                running_sum -= to_drop
+            result[i] = running_sum / window
+        elif valid_count == window:
+            result[i] = running_sum / window
     return result
+
+
+def _nth_prev_valid(values, end_idx, n):
+    """Return the nth previous non-None value before end_idx, or None."""
+    count = 0
+    for j in range(end_idx - 1, -1, -1):
+        if values[j] is not None:
+            count += 1
+            if count == n:
+                return values[j]
+    return None
 
 
 def detect_crossover(closes: list, ma_short: list, ma_long: list) -> list:
@@ -68,6 +84,7 @@ class MaCrossModel:
             LIMIT ?
         """, (stock_code, self.long + 2)).fetchall()
 
+        rows = [r for r in rows if r[1] is not None]
         if len(rows) < self.long:
             return []
 

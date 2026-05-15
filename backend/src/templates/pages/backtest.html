@@ -2,77 +2,319 @@
 {% block title %}回测 - myQuant{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">策略回测</h1>
-    <p class="text-gray-500 mt-1">配置参数，运行回测，查看收益曲线</p>
-</div>
+<div class="mb-6" x-data="{ tab: 'single' }">
+    <div class="flex items-center gap-4 mb-4">
+        <h1 class="text-2xl font-bold text-gray-800">策略回测</h1>
+        <div class="flex border rounded overflow-hidden text-sm">
+            <button @click="tab='single'"
+                    :class="tab==='single' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                    class="px-4 py-1.5 transition">单股回测</button>
+            <button @click="tab='batch'"
+                    :class="tab==='batch' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                    class="px-4 py-1.5 border-l transition">批量回测</button>
+        </div>
+    </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg border p-6">
-            <h3 class="font-semibold text-gray-700 mb-4">回测参数</h3>
-            <form id="backtest-form"
-                  hx-post="/api/backtest/run"
-                  hx-target="#backtest-results"
-                  hx-indicator="#backtest-spinner">
-                <div class="space-y-3">
-                    <div>
-                        <label class="text-xs text-gray-500">模型</label>
-                        <select name="model_name" class="w-full border rounded px-3 py-1.5 text-sm">
-                            <option value="ma_cross">双均线模型 (MA5/MA20)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-500">股票代码</label>
-                        <input name="stock_code" value="000001.SZ"
-                               class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
+    <!-- Single Stock Tab -->
+    <div x-show="tab==='single'" x-cloak>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg border p-6">
+                    <h3 class="font-semibold text-gray-700 mb-4">单股回测参数</h3>
+                    <form id="backtest-form"
+                          hx-post="/api/backtest/run"
+                          hx-target="#backtest-results"
+                          hx-indicator="#backtest-spinner">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-xs text-gray-500">模型</label>
+                                <select name="model_name" class="w-full border rounded px-3 py-1.5 text-sm">
+                                    <option value="ma_cross">双均线模型 (MA5/MA20)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">股票代码</label>
+                                <input name="stock_code" value="000001.SZ"
+                                       class="w-full border rounded px-3 py-1.5 text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-500">短周期</label>
+                                    <input name="short" type="number" value="5"
+                                           class="w-full border rounded px-3 py-1.5 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">长周期</label>
+                                    <input name="long" type="number" value="20"
+                                           class="w-full border rounded px-3 py-1.5 text-sm">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">起始日期</label>
+                                <input name="start_date" type="date" value="2025-01-01"
+                                       class="w-full border rounded px-3 py-1.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">结束日期</label>
+                                <input name="end_date" type="date" value="2025-12-31"
+                                       class="w-full border rounded px-3 py-1.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">初始资金</label>
+                                <input name="initial_capital" type="number" value="100000"
+                                       class="w-full border rounded px-3 py-1.5 text-sm">
+                            </div>
+                            <button type="submit"
+                                    class="w-full bg-blue-600 text-white py-2 rounded text-sm font-medium hover:bg-blue-700">
+                                运行回测
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="lg:col-span-2">
+                <div id="backtest-spinner" class="htmx-indicator text-sm text-gray-400 mb-4">回测运行中...</div>
+                <div id="backtest-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Backtest Tab -->
+    <div x-show="tab==='batch'" x-cloak>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg border p-6" x-data="batchBacktest()">
+                    <h3 class="font-semibold text-gray-700 mb-4">批量回测参数</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs text-gray-500">模型</label>
+                            <select id="batch-model" class="w-full border rounded px-3 py-1.5 text-sm"
+                                    x-ref="modelSelect">
+                            </select>
+                        </div>
                         <div>
                             <label class="text-xs text-gray-500">短周期</label>
-                            <input name="short" type="number" value="5"
+                            <input id="batch-short" type="number" value="5"
                                    class="w-full border rounded px-3 py-1.5 text-sm">
                         </div>
                         <div>
                             <label class="text-xs text-gray-500">长周期</label>
-                            <input name="long" type="number" value="20"
+                            <input id="batch-long" type="number" value="20"
                                    class="w-full border rounded px-3 py-1.5 text-sm">
                         </div>
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-500">起始日期</label>
-                        <input name="start_date" type="date" value="2025-01-01"
-                               class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-500">结束日期</label>
-                        <input name="end_date" type="date" value="2025-12-31"
-                               class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-500">初始资金</label>
-                        <input name="initial_capital" type="number" value="100000"
-                               class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <button type="submit"
-                            class="w-full bg-blue-600 text-white py-2 rounded text-sm font-medium hover:bg-blue-700">
-                        运行回测
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+                        <div>
+                            <label class="text-xs text-gray-500">起始日期</label>
+                            <input id="batch-start" type="date" value="2025-01-01"
+                                   class="w-full border rounded px-3 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">结束日期</label>
+                            <input id="batch-end" type="date" value="2025-12-31"
+                                   class="w-full border rounded px-3 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">初始资金</label>
+                            <input id="batch-capital" type="number" value="100000"
+                                   class="w-full border rounded px-3 py-1.5 text-sm">
+                        </div>
 
-    <div class="lg:col-span-2">
-        <div id="backtest-spinner" class="htmx-indicator text-sm text-gray-400 mb-4">回测运行中...</div>
-        <div id="backtest-results"></div>
+                        <!-- Mode tabs -->
+                        <div>
+                            <label class="text-xs text-gray-500">选择股票</label>
+                            <div class="flex border rounded overflow-hidden text-xs mt-1">
+                                <button @click="mode='watchlist'; loadWatchlist()"
+                                        :class="mode==='watchlist' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                        class="flex-1 py-1.5 text-center transition">自选股</button>
+                                <button @click="mode='all'"
+                                        :class="mode==='all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                        class="flex-1 py-1.5 text-center border-l transition">全量</button>
+                                <button @click="mode='manual'"
+                                        :class="mode==='manual' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                                        class="flex-1 py-1.5 text-center border-l transition">手动输入</button>
+                            </div>
+                        </div>
+
+                        <!-- Watchlist mode -->
+                        <div x-show="mode==='watchlist'" x-cloak>
+                            <div x-show="watchlistLoading" class="text-xs text-gray-400 py-2">加载中...</div>
+                            <div x-show="watchlistStocks.length === 0 && !watchlistLoading" class="text-xs text-gray-400 py-2">
+                                自选股为空，请先在<a href="/stocks" class="text-blue-600">股票列表</a>中添加自选股
+                            </div>
+                            <div x-show="watchlistStocks.length > 0" class="border rounded divide-y max-h-48 overflow-y-auto">
+                                <template x-for="s in watchlistStocks" :key="s.stock_code">
+                                    <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-xs">
+                                        <input type="checkbox" :value="s.stock_code" x-model="selectedCodes"
+                                               class="rounded border-gray-300">
+                                        <span class="font-mono" x-text="s.stock_code"></span>
+                                        <span class="text-gray-400" x-text="s.stock_name"></span>
+                                    </label>
+                                </template>
+                            </div>
+                            <div x-show="watchlistStocks.length > 0" class="flex gap-2 mt-2">
+                                <button @click="selectAllWatchlist()" type="button"
+                                        class="text-xs text-blue-600 hover:text-blue-800">全选</button>
+                                <button @click="selectedCodes=[]" type="button"
+                                        class="text-xs text-gray-400 hover:text-gray-600">取消全选</button>
+                            </div>
+                        </div>
+
+                        <!-- All stocks mode -->
+                        <div x-show="mode==='all'" x-cloak>
+                            <div x-show="allStockCodes.length === 0" class="text-xs text-gray-400 py-2">
+                                <button @click="loadAllStocks()" type="button"
+                                        class="text-blue-600 hover:text-blue-800">查询可用股票</button>
+                            </div>
+                            <div x-show="allStockCodes.length > 0" class="text-xs text-gray-600 py-2">
+                                共 <span class="font-semibold" x-text="allStockCodes.length"></span> 只股票将被测试
+                                <button @click="selectedCodes = [...allStockCodes]" type="button"
+                                        class="ml-2 text-blue-600 hover:text-blue-800">全选加入</button>
+                            </div>
+                        </div>
+
+                        <!-- Manual input mode -->
+                        <div x-show="mode==='manual'" x-cloak>
+                            <textarea x-model="manualInput" placeholder="输入股票代码，用逗号分隔&#10;如: 000001.SZ,000002.SZ,600000.SH"
+                                      rows="3"
+                                      class="w-full border rounded px-3 py-1.5 text-xs"></textarea>
+                            <button @click="parseManual()" type="button"
+                                    class="text-xs text-blue-600 hover:text-blue-800 mt-1">解析代码</button>
+                            <div x-show="parsedManualCodes.length > 0" class="text-xs text-gray-400 mt-1">
+                                已解析 <span x-text="parsedManualCodes.length"></span> 个代码
+                            </div>
+                        </div>
+
+                        <!-- Selected count -->
+                        <div class="text-xs text-gray-500">
+                            已选择 <span class="font-semibold text-blue-600" x-text="selectedCodes.length"></span> 只股票
+                        </div>
+
+                        <button @click="submitBatch()" type="button"
+                                :disabled="selectedCodes.length === 0"
+                                class="w-full bg-blue-600 text-white py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                            开始批量回测
+                        </button>
+                        <div x-show="loading" class="text-xs text-gray-400 text-center">回测运行中...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="lg:col-span-2">
+                <div id="batch-results"></div>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- History section (shown for both tabs) -->
 <div class="mt-8">
     <h3 class="font-semibold text-gray-700 mb-4">历史回测记录</h3>
     <div hx-get="/api/backtest/history" hx-trigger="load" hx-target="this">
         <p class="text-gray-400 text-sm">加载中...</p>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function batchBacktest() {
+    return {
+        mode: 'watchlist',
+        selectedCodes: [],
+        watchlistStocks: [],
+        watchlistLoading: false,
+        allStockCodes: [],
+        manualInput: '',
+        parsedManualCodes: [],
+        loading: false,
+
+        async init() {
+            try {
+                const resp = await fetch('/api/models');
+                const models = await resp.json();
+                const sel = this.$refs.modelSelect;
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.model_name;
+                    opt.textContent = m.display_name || m.model_name;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                const sel = this.$refs.modelSelect;
+                const opt = document.createElement('option');
+                opt.value = 'ma_cross';
+                opt.textContent = '双均线模型';
+                sel.appendChild(opt);
+            }
+        },
+
+        async loadWatchlist() {
+            if (this.watchlistStocks.length > 0) return;
+            this.watchlistLoading = true;
+            try {
+                const resp = await fetch('/api/watchlist');
+                this.watchlistStocks = await resp.json();
+            } catch (e) {
+                this.watchlistStocks = [];
+            }
+            this.watchlistLoading = false;
+        },
+
+        selectAllWatchlist() {
+            this.selectedCodes = this.watchlistStocks.map(s => s.stock_code);
+        },
+
+        async loadAllStocks() {
+            const sd = document.getElementById('batch-start').value;
+            const ed = document.getElementById('batch-end').value;
+            try {
+                const resp = await fetch(`/api/stocks/with-kline?start=${sd}&end=${ed}`);
+                const data = await resp.json();
+                this.allStockCodes = data.map(s => s.stock_code);
+            } catch (e) {
+                this.allStockCodes = [];
+            }
+        },
+
+        parseManual() {
+            this.parsedManualCodes = this.manualInput
+                .split(/[,，\s]+/)
+                .map(c => c.trim())
+                .filter(c => c.length > 0);
+            this.selectedCodes = [...this.parsedManualCodes];
+        },
+
+        async submitBatch() {
+            if (this.selectedCodes.length === 0) return;
+            this.loading = true;
+            const modelName = document.getElementById('batch-model')?.value || 'ma_cross';
+            const params = new URLSearchParams();
+            params.append('model_name', modelName);
+            params.append('short', document.getElementById('batch-short').value);
+            params.append('long', document.getElementById('batch-long').value);
+            params.append('start_date', document.getElementById('batch-start').value);
+            params.append('end_date', document.getElementById('batch-end').value);
+            params.append('initial_capital', document.getElementById('batch-capital').value);
+            params.append('stock_codes', this.selectedCodes.join(','));
+
+            const container = document.getElementById('batch-results');
+            container.innerHTML = '<div class="text-sm text-gray-400 py-8 text-center">回测运行中，请稍候...</div>';
+
+            try {
+                const resp = await fetch('/api/backtest/batch-run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'HX-Request': 'true',
+                    },
+                    body: params.toString(),
+                });
+                const html = await resp.text();
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<div class="text-red-500 text-sm py-4 text-center">回测请求失败</div>';
+            }
+            this.loading = false;
+        }
+    }
+}
+</script>
 {% endblock %}

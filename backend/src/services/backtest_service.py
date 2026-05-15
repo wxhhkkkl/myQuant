@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 def run_backtest(stock_code: str, kline: list, signals: list,
-                 initial_capital: float = 100000) -> dict:
+                 initial_capital: float = 100000,
+                 model_name: str = "ma_cross",
+                 model_params: str = "{}") -> dict:
     """
     Run backtest simulation.
 
@@ -126,7 +128,7 @@ def run_backtest(stock_code: str, kline: list, signals: list,
              initial_capital, final_capital, total_return, annual_return,
              max_drawdown, sharpe_ratio, trade_count, win_rate)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (run_id, "ma_cross", "{}", stock_code,
+    """, (run_id, model_name, model_params, stock_code,
           dates[0] if dates else "", dates[-1] if dates else "",
           initial_capital, final_capital, total_return, annual_return,
           max_dd, sharpe, len(trades), win_rate))

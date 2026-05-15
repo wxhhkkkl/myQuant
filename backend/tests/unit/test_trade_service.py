@@ -52,7 +52,7 @@ class TestTradeService:
         svc = TradeService()
         svc._connector = MagicMock()
         svc._connector.is_connected.return_value = True
-        svc._connector.trader.order_stock.return_value = 12345
+        svc._connector.submit_order.return_value = 12345
 
         result = svc.place_order("000001.SZ", "BUY", 12.5, 100)
 
@@ -72,16 +72,16 @@ class TestTradeService:
         with pytest.raises(RuntimeError):
             svc.place_order("000001.SZ", "BUY", 12.5, 100)
 
-    @patch("backend.src.services.trade_service.HAS_QMT", True)
-    def test_cancel_order_calls_qmt(self):
-        """cancel_order() should call xttrader cancel."""
-        from backend.src.services.trade_service import TradeService
+    def test_connector_cancel_order(self):
+        """QMTConnector.cancel_order() should call xttrader cancel."""
+        from backend.src.services.qmt_connector import QMTConnector
+        from unittest.mock import MagicMock
 
-        svc = TradeService()
-        svc._connector = MagicMock()
-        svc._connector.is_connected.return_value = True
+        c = QMTConnector()
+        c._trader = MagicMock()
+        c._connected = True
 
-        result = svc.cancel_order(42)
+        result = c.cancel_order(42)
 
-        svc._connector.trader.cancel_order_stock.assert_called_once()
+        c._trader.cancel_order_stock.assert_called_once_with(42)
         assert result is True

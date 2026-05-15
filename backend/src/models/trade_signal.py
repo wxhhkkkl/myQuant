@@ -16,11 +16,15 @@ class TradeSignal:
                     signal_price REAL NOT NULL,
                     signal_reason TEXT,
                     is_confirmed INTEGER DEFAULT 0,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    stock_name VARCHAR(50) DEFAULT '',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             # Add columns if upgrading from older schema
-            for col, col_type in [("config_id", "INTEGER"), ("trade_date", "VARCHAR(10)")]:
+            for col, col_type in [("config_id", "INTEGER"), ("trade_date", "VARCHAR(10)"),
+                                   ("status", "VARCHAR(20) DEFAULT 'pending'"),
+                                   ("stock_name", "VARCHAR(50) DEFAULT ''")]:
                 try:
                     conn.execute(f"ALTER TABLE trade_signals ADD COLUMN {col} {col_type}")
                 except Exception:
@@ -78,10 +82,20 @@ class TradeSignal:
         return [dict(r) for r in rows]
 
     @staticmethod
-    def pending() -> list:
+    def update_status(signal_id: int, status: str):
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE trade_signals SET status = ? WHERE id = ?",
+                (status, signal_id)
+            )
+
+    @staticmethod
+    def pending_by_model(model_name: str) -> list:
         with get_db() as conn:
             rows = conn.execute(
-                "SELECT * FROM trade_signals WHERE is_confirmed = 0 ORDER BY created_at DESC"
+                "SELECT * FROM trade_signals WHERE model_name = ? AND status = 'pending' "
+                "ORDER BY created_at DESC",
+                (model_name,)
             ).fetchall()
         return [dict(r) for r in rows]
 

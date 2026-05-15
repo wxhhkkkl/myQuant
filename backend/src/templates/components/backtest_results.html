@@ -1,0 +1,109 @@
+{% if error %}
+<div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{{ error }}</div>
+{% else %}
+<div class="space-y-4">
+    <!-- Metrics Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="bg-white rounded-lg border p-4">
+            <div class="text-gray-500 text-xs">累计收益率</div>
+            <div class="text-xl font-bold {% if total_return >= 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                {{ "%.2f"|format(total_return * 100) }}%
+            </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4">
+            <div class="text-gray-500 text-xs">年化收益率</div>
+            <div class="text-xl font-bold {% if annual_return >= 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                {{ "%.2f"|format(annual_return * 100) }}%
+            </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4">
+            <div class="text-gray-500 text-xs">最大回撤</div>
+            <div class="text-xl font-bold text-green-600">
+                {{ "%.2f"|format(max_drawdown * 100) }}%
+            </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4">
+            <div class="text-gray-500 text-xs">夏普比率</div>
+            <div class="text-xl font-bold text-gray-800">
+                {{ "%.2f"|format(sharpe_ratio) }}
+            </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4">
+            <div class="text-gray-500 text-xs">胜率</div>
+            <div class="text-xl font-bold text-gray-800">
+                {{ "%.2f"|format(win_rate * 100) }}%
+            </div>
+        </div>
+        <div class="bg-white rounded-lg border p-4">
+            <div class="text-gray-500 text-xs">交易次数</div>
+            <div class="text-xl font-bold text-gray-800">{{ trade_count }}</div>
+        </div>
+    </div>
+
+    <!-- Capital Summary -->
+    <div class="bg-white rounded-lg border p-4">
+        <div class="flex justify-between items-center">
+            <div>
+                <span class="text-gray-500 text-xs">初始资金</span>
+                <span class="ml-2 font-mono font-semibold text-sm">{{ "%.2f"|format(initial_capital) }}</span>
+            </div>
+            <div class="text-gray-300">→</div>
+            <div>
+                <span class="text-gray-500 text-xs">最终资金</span>
+                <span class="ml-2 font-mono font-semibold text-sm {% if final_capital >= initial_capital %}text-red-600{% else %}text-green-600{% endif %}">
+                    {{ "%.2f"|format(final_capital) }}
+                </span>
+            </div>
+            <div>
+                <span class="text-gray-500 text-xs">Run ID</span>
+                <span class="ml-2 font-mono text-xs text-gray-400">{{ run_id[:8] }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trades Table -->
+    {% if trades %}
+    <div class="bg-white rounded-lg border overflow-hidden">
+        <h4 class="px-4 py-3 font-semibold text-gray-700 text-sm border-b">交易明细</h4>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead class="bg-gray-50 text-gray-500">
+                    <tr>
+                        <th class="px-4 py-2 text-left">日期</th>
+                        <th class="px-4 py-2 text-left">类型</th>
+                        <th class="px-4 py-2 text-right">价格</th>
+                        <th class="px-4 py-2 text-right">数量</th>
+                        <th class="px-4 py-2 text-right">盈亏</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for t in trades %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-2 font-mono">{{ t.trade_date }}</td>
+                        <td class="px-4 py-2">
+                            <span class="px-2 py-0.5 text-xs rounded-full font-medium
+                                {% if t.trade_type == 'BUY' %}bg-red-100 text-red-700
+                                {% else %}bg-green-100 text-green-700{% endif %}">
+                                {{ "买入" if t.trade_type == "BUY" else "卖出" }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2 text-right font-mono">{{ "%.2f"|format(t.price) }}</td>
+                        <td class="px-4 py-2 text-right font-mono">{{ t.quantity }}</td>
+                        <td class="px-4 py-2 text-right font-mono">
+                            {% if t.profit is not none %}
+                            <span class="{% if t.profit >= 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                {{ "%+.2f"|format(t.profit) }}
+                            </span>
+                            {% else %}
+                            <span class="text-gray-300">--</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

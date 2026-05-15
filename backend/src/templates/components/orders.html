@@ -3,35 +3,42 @@
     <thead>
         <tr class="text-left text-gray-500 border-b">
             <th class="py-2 pr-2">ID</th>
+            <th class="py-2 pr-2">模型</th>
             <th class="py-2 pr-2">股票</th>
             <th class="py-2 pr-2">方向</th>
             <th class="py-2 pr-2">价格</th>
             <th class="py-2 pr-2">数量</th>
             <th class="py-2 pr-2">状态</th>
+            <th class="py-2 pr-2">重试</th>
             <th class="py-2">操作</th>
         </tr>
     </thead>
     <tbody>
         {% for o in orders %}
         <tr class="border-b last:border-0">
-            <td class="py-2 pr-2 text-gray-400">{{ o.id }}</td>
-            <td class="py-2 pr-2 font-mono">{{ o.stock_code }}</td>
+            <td class="py-2 pr-2 text-gray-400 text-xs">{{ o.id }}</td>
+            <td class="py-2 pr-2 text-xs text-gray-500">{{ o.get('model_name', '') or '-' }}</td>
+            <td class="py-2 pr-2 font-mono text-xs">{{ o.stock_code }}</td>
             <td class="py-2 pr-2">
                 <span class="px-1.5 py-0.5 text-xs rounded
                     {% if o.order_type == 'BUY' %}bg-red-100 text-red-700
                     {% else %}bg-green-100 text-green-700{% endif %}">
-                    {{ o.order_type }}
+                    {{ '买入' if o.order_type == 'BUY' else '卖出' }}
                 </span>
             </td>
-            <td class="py-2 pr-2">{{ "%.2f"|format(o.price) }}</td>
-            <td class="py-2 pr-2">{{ o.quantity }}</td>
+            <td class="py-2 pr-2 text-xs">{{ "%.2f"|format(o.price) }}</td>
+            <td class="py-2 pr-2 text-xs">{{ o.quantity }}</td>
             <td class="py-2 pr-2">
                 <span class="px-1.5 py-0.5 text-xs rounded
                     {% if o.status == 'submitted' %}bg-yellow-100 text-yellow-700
-                    {% elif o.status == 'cancelled' %}bg-gray-100 text-gray-500
-                    {% else %}bg-green-100 text-green-700{% endif %}">
+                    {% elif o.status == 'filled' %}bg-green-100 text-green-700
+                    {% elif o.status == 'failed' %}bg-red-100 text-red-700
+                    {% else %}bg-gray-100 text-gray-500{% endif %}">
                     {{ o.status }}
                 </span>
+            </td>
+            <td class="py-2 pr-2 text-xs text-gray-400">
+                {{ o.get('retry_count', 0) or 0 }}/3
             </td>
             <td class="py-2">
                 {% if o.status == 'submitted' %}
@@ -39,6 +46,12 @@
                         hx-target="closest tr" hx-swap="outerHTML"
                         class="text-xs text-red-500 hover:text-red-700">
                     撤销
+                </button>
+                {% elif o.status == 'failed' %}
+                <button hx-post="/api/trading/orders/{{ o.id }}/retry"
+                        hx-target="closest tr" hx-swap="outerHTML"
+                        class="text-xs text-blue-500 hover:text-blue-700">
+                    重试
                 </button>
                 {% endif %}
             </td>

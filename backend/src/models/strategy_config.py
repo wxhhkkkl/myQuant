@@ -17,13 +17,17 @@ class StrategyConfig:
                     time_range    VARCHAR(5) DEFAULT '1y',
                     stock_list    TEXT,
                     is_active     BOOLEAN DEFAULT 0,
+                    is_running    INTEGER DEFAULT 0,
+                    capital       REAL DEFAULT 100000,
                     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (model_name) REFERENCES quant_models(model_name)
                 )
             """)
             # Add columns if upgrading from older schema
             for col, col_type in [("stock_code", "VARCHAR(10)"), ("position_pct", "INTEGER DEFAULT 100"),
-                                   ("time_range", "VARCHAR(5) DEFAULT '1y'")]:
+                                   ("time_range", "VARCHAR(5) DEFAULT '1y'"),
+                                   ("is_running", "INTEGER DEFAULT 0"),
+                                   ("capital", "REAL DEFAULT 100000")]:
                 try:
                     conn.execute(f"ALTER TABLE strategy_configs ADD COLUMN {col} {col_type}")
                 except Exception:
@@ -50,3 +54,27 @@ class StrategyConfig:
                 (model_name,)
             ).fetchone()
         return dict(row) if row else None
+
+    @staticmethod
+    def set_running(model_name: str, is_running: bool):
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE strategy_configs SET is_running = ? WHERE model_name = ? AND is_active = 1",
+                (1 if is_running else 0, model_name)
+            )
+
+    @staticmethod
+    def get_running_models() -> list:
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT * FROM strategy_configs WHERE is_running = 1 AND is_active = 1"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    @staticmethod
+    def set_capital(model_name: str, capital: float):
+        with get_db() as conn:
+            conn.execute(
+                "UPDATE strategy_configs SET capital = ? WHERE model_name = ? AND is_active = 1",
+                (capital, model_name)
+            )

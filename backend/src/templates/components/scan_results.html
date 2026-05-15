@@ -1,0 +1,58 @@
+{% if results|length > 0 %}
+<div class="bg-white rounded-lg border p-4">
+    <h3 class="text-sm font-semibold text-gray-700 mb-3">
+        {{ '买入' if signal_type == 'BUY' else '卖出' }}信号扫描结果
+        <span class="text-xs text-gray-400 font-normal ml-2">共 {{ results|length }} 条</span>
+        <span class="text-xs text-gray-400 ml-2">模型: {{ model_name }}</span>
+    </h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-xs text-gray-500 border-b">
+                    <th class="py-2 px-2">股票代码</th>
+                    <th class="py-2 px-2">名称</th>
+                    <th class="py-2 px-2">市盈率</th>
+                    <th class="py-2 px-2">信号类型</th>
+                    <th class="py-2 px-2">信号价格</th>
+                    <th class="py-2 px-2">信号原因</th>
+                    <th class="py-2 px-2">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in results %}
+                <tr class="border-b hover:bg-gray-50" id="signal-row-{{ s.id }}">
+                    <td class="py-2 px-2 font-mono text-xs">{{ s.stock_code }}</td>
+                    <td class="py-2 px-2">{{ s.stock_name }}</td>
+                    <td class="py-2 px-2 font-mono text-xs {{ 'text-red-500' if s.pe_ratio and s.pe_ratio < 0 else 'text-gray-600' }}">
+                        {{ "%.1f"|format(s.pe_ratio) if s.pe_ratio else '-' }}
+                    </td>
+                    <td class="py-2 px-2">
+                        <span class="text-xs px-1.5 py-0.5 rounded {{ 'text-green-700 bg-green-50' if s.signal_type == 'BUY' else 'text-red-700 bg-red-50' }}">
+                            {{ '买入' if s.signal_type == 'BUY' else '卖出' }}
+                        </span>
+                    </td>
+                    <td class="py-2 px-2 font-mono text-xs">{{ "%.2f"|format(s.signal_price) }}</td>
+                    <td class="py-2 px-2 text-xs text-gray-500">{{ s.signal_reason }}</td>
+                    <td class="py-2 px-2">
+                        <button class="text-xs text-green-600 hover:text-green-800 mr-2"
+                                onclick="window._trading.openBuyModal('{{ s.id }}', '{{ s.stock_code }}', '{{ s.stock_name }}', '{{ s.signal_price }}', '{{ s.signal_type }}')">
+                            确认{{ '买入' if s.signal_type == 'BUY' else '卖出' }}
+                        </button>
+                        <button class="text-xs text-gray-400 hover:text-gray-600"
+                                hx-post="/api/signals/{{ s.id }}/ignore"
+                                hx-target="#signal-row-{{ s.id }}"
+                                hx-swap="outerHTML">
+                            忽略
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="bg-white rounded-lg border p-4 text-center text-sm text-gray-400">
+    暂未发现符合条件的交易信号
+</div>
+{% endif %}

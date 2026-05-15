@@ -1,0 +1,74 @@
+<div>
+    <!-- Summary bar -->
+    <div class="bg-white rounded-lg border p-3 mb-3 text-sm text-gray-600">
+        {{ model_name }} &nbsp;|&nbsp; {{ start_date }} ~ {{ end_date }} &nbsp;|&nbsp;
+        共 <span class="font-semibold">{{ results|length + failed|length }}</span> 只股票，
+        成功 <span class="font-semibold text-red-600">{{ results|length }}</span> 只
+        {% if failed %}, 失败 <span class="font-semibold text-gray-400">{{ failed|length }}</span> 只{% endif %}
+    </div>
+
+    <!-- Results table -->
+    {% if results %}
+    <div class="bg-white rounded-lg border overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead class="bg-gray-50 text-gray-500">
+                    <tr>
+                        <th class="px-3 py-2 text-left">股票</th>
+                        <th class="px-3 py-2 text-right">累计收益</th>
+                        <th class="px-3 py-2 text-right">年化收益</th>
+                        <th class="px-3 py-2 text-right">最大回撤</th>
+                        <th class="px-3 py-2 text-right">夏普</th>
+                        <th class="px-3 py-2 text-right">胜率</th>
+                        <th class="px-3 py-2 text-right">交易</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for r in results %}
+                    <tr class="hover:bg-gray-50 cursor-pointer"
+                        hx-get="/api/backtest/{{ r.run_id }}"
+                        hx-target="#backtest-detail-area"
+                        hx-swap="innerHTML">
+                        <td class="px-3 py-2">
+                            <span class="font-mono font-medium">{{ r.stock_code }}</span>
+                            <span class="text-gray-400 ml-1">{{ r.stock_name or '' }}</span>
+                        </td>
+                        <td class="px-3 py-2 text-right font-mono {% if r.total_return >= 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                            {{ "%.2f"|format(r.total_return * 100) }}%
+                        </td>
+                        <td class="px-3 py-2 text-right font-mono {% if r.annual_return >= 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                            {{ "%.2f"|format(r.annual_return * 100) }}%
+                        </td>
+                        <td class="px-3 py-2 text-right font-mono text-green-600">
+                            {{ "%.2f"|format(r.max_drawdown * 100) }}%
+                        </td>
+                        <td class="px-3 py-2 text-right font-mono">{{ "%.2f"|format(r.sharpe_ratio) }}</td>
+                        <td class="px-3 py-2 text-right font-mono">{{ "%.0f"|format(r.win_rate * 100) }}%</td>
+                        <td class="px-3 py-2 text-right">{{ r.trade_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Failed stocks -->
+    {% if failed %}
+    <div class="bg-white rounded-lg border p-4 mt-3">
+        <h4 class="text-sm font-semibold text-gray-500 mb-2">失败的股票</h4>
+        <div class="space-y-1">
+            {% for f in failed %}
+            <div class="text-xs text-gray-400">
+                <span class="font-mono">{{ f.stock_code }}</span>
+                <span class="ml-1">{{ f.stock_name }}</span>
+                <span class="ml-2 text-red-400">{{ f.error }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detail area -->
+    <div id="backtest-detail-area" class="mt-4"></div>
+</div>

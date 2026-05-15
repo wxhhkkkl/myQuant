@@ -17,15 +17,21 @@ def _signal_scan_job():
     from backend.src.models.strategy_config import StrategyConfig
 
     svc = TradeService()
-    config = StrategyConfig.get("ma_cross")
-    if not config or not config.get("stock_list"):
-        return
+    # Only scan models with is_running=1
+    running = StrategyConfig.get_running_models()
+    for config in running:
+        model_name = config["model_name"]
+        stock_list = config.get("stock_list")
+        if not stock_list:
+            continue
 
-    import json
-    stock_list = json.loads(config["stock_list"]) if isinstance(config["stock_list"], str) else config["stock_list"]
-    params = json.loads(config["params"]) if isinstance(config["params"], str) else config["params"]
-    model = MaCrossModel(short=params.get("short", 5), long=params.get("long", 20))
-    svc.scan_and_signal(model, stock_list)
+        import json
+        stock_list = json.loads(stock_list) if isinstance(stock_list, str) else stock_list
+        params = config.get("params", {})
+        if isinstance(params, str):
+            params = json.loads(params)
+        model = MaCrossModel(short=params.get("short", 5), long=params.get("long", 20))
+        svc.scan_and_signal(model, stock_list)
 
 
 def start_scheduler():

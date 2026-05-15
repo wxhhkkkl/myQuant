@@ -1,50 +1,547 @@
 {% extends "base.html" %}
-{% block title %}在线交易 - myQuant{% endblock %}
+{% block title %}量化交易 - myQuant{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">在线交易</h1>
-    <p class="text-gray-500 mt-1">查看交易信号、手动下单、监控订单状态</p>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div>
-        <div class="bg-white rounded-lg shadow p-4 mb-4">
-            <h2 class="text-lg font-semibold text-gray-700 mb-3">交易信号</h2>
-            <div id="signal-list" hx-get="/api/signals" hx-trigger="load, every 30s" hx-target="this">
-                <p class="text-gray-400 text-sm">加载中...</p>
-            </div>
+<div class="mb-6" x-data="tradingPage()" x-init="init()">
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">量化交易</h1>
+            <p class="text-gray-500 mt-1">模型管理、信号扫描、下单执行、收益监控</p>
+        </div>
+        <div x-show="!isTradingTime()" class="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-3 py-1.5">
+            非交易时段 — 下单和监控功能已暂停
         </div>
     </div>
-    <div>
-        <div class="bg-white rounded-lg shadow p-4 mb-4">
-            <h2 class="text-lg font-semibold text-gray-700 mb-3">手动下单</h2>
-            <form hx-post="/api/orders" hx-target="#order-result" class="space-y-3">
-                <input name="stock_code" placeholder="股票代码 (如 000001.SZ)" required
-                       class="w-full border rounded px-3 py-2 text-sm">
-                <div class="flex gap-2">
-                    <select name="order_type" class="border rounded px-3 py-2 text-sm">
-                        <option value="BUY">买入</option>
-                        <option value="SELL">卖出</option>
-                    </select>
-                    <input name="price" type="number" step="0.01" placeholder="价格" required
-                           class="border rounded px-3 py-2 text-sm flex-1">
-                    <input name="quantity" type="number" step="100" placeholder="数量" required
-                           class="border rounded px-3 py-2 text-sm flex-1">
+
+    <!-- Model list -->
+    <div class="space-y-4" id="model-list">
+        <template x-for="m in models" :key="m.model_name">
+            <div class="bg-white rounded-lg border hover:shadow-sm transition">
+                <!-- Card header -->
+                <div class="flex items-center justify-between px-5 py-4 cursor-pointer"
+                     @click="toggleModel(m.model_name)">
+                    <div class="flex items-center gap-3">
+                        <span class="text-lg font-semibold text-gray-800" x-text="m.display_name"></span>
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              :class="m.is_running ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                              x-text="m.is_running ? '运行中' : '已停止'"></span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-400">
+                        <span class="text-xs" x-show="m.is_running" x-text="'资金: ¥' + formatMoney(m.capital)"></span>
+                        <svg class="w-4 h-4 transition-transform" :class="isExpanded(m.model_name) ? 'rotate-180' : ''"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
                 </div>
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-                    提交订单
-                </button>
-            </form>
-            <div id="order-result" class="mt-3"></div>
-        </div>
 
-        <div class="bg-white rounded-lg shadow p-4">
-            <h2 class="text-lg font-semibold text-gray-700 mb-3">订单列表</h2>
-            <div id="order-list" hx-get="/api/orders" hx-trigger="load, every 30s" hx-target="this">
-                <p class="text-gray-400 text-sm">加载中...</p>
+                <!-- Expandable config panel -->
+                <div x-show="isExpanded(m.model_name)" x-cloak class="border-t px-5 py-4 bg-gray-50 rounded-b-lg">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Config form -->
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-600 mb-3">策略参数</h4>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-500">短周期</label>
+                                    <input type="number" x-model="editingParams[m.model_name].short"
+                                           class="w-full border rounded px-2 py-1 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">长周期</label>
+                                    <input type="number" x-model="editingParams[m.model_name].long"
+                                           class="w-full border rounded px-2 py-1 text-sm">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mt-2">
+                                <div>
+                                    <label class="text-xs text-gray-500">仓位比例 (%)</label>
+                                    <input type="number" x-model="editingParams[m.model_name].position_pct" min="1" max="100"
+                                           class="w-full border rounded px-2 py-1 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">时间范围</label>
+                                    <select x-model="editingParams[m.model_name].time_range"
+                                            class="w-full border rounded px-2 py-1 text-sm">
+                                        <option value="1m">近1月</option>
+                                        <option value="3m">近3月</option>
+                                        <option value="6m">近6月</option>
+                                        <option value="1y">近1年</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-4">
+                                <button @click="saveConfig(m.model_name)"
+                                        class="text-xs bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300">
+                                    保存配置
+                                </button>
+                                <button @click="startModel(m.model_name)"
+                                        x-show="!m.is_running"
+                                        class="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">
+                                    启动模型
+                                </button>
+                                <button @click="stopModel(m.model_name)"
+                                        x-show="m.is_running"
+                                        class="text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600">
+                                    停止模型
+                                </button>
+                            </div>
+                            <div x-show="messages[m.model_name]" x-text="messages[m.model_name]"
+                                 class="text-xs mt-2" :class="messageType[m.model_name] === 'ok' ? 'text-green-600' : 'text-red-500'"></div>
+                        </div>
+
+                        <!-- Scan & performance area (when running) -->
+                        <div x-show="m.is_running">
+                            <h4 class="text-sm font-semibold text-gray-600 mb-3">信号扫描</h4>
+                            <div class="flex items-center gap-2 mb-2">
+                                <label class="text-xs text-gray-500">扫描范围</label>
+                                <select x-model="scanScope[m.model_name]" class="border rounded px-2 py-1 text-xs">
+                                    <option value="all">全量市场</option>
+                                    <option value="watchlist">自选股</option>
+                                    <option value="industry">指定行业</option>
+                                </select>
+                                <input x-show="scanScope[m.model_name] === 'industry'"
+                                       x-model="scanIndustry[m.model_name]"
+                                       placeholder="行业名称" class="border rounded px-2 py-1 text-xs w-24">
+                            </div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <label class="flex items-center gap-1 text-xs text-gray-500">
+                                    <input type="checkbox" x-model="filterExcludeST[m.model_name]" class="rounded">
+                                    排除ST股
+                                </label>
+                                <label class="flex items-center gap-1 text-xs text-gray-500">
+                                    <input type="checkbox" x-model="filterExcludeLoss[m.model_name]" class="rounded">
+                                    排除亏损股
+                                </label>
+                            </div>
+                            <div class="flex gap-2">
+                                <button @click="scanSignals(m.model_name, 'BUY')"
+                                        class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">
+                                    扫描买入信号
+                                </button>
+                                <button @click="scanSignals(m.model_name, 'SELL')"
+                                        class="text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600">
+                                    扫描卖出信号
+                                </button>
+                            </div>
+                            <div x-show="scanLoading[m.model_name]" class="text-xs text-gray-400 mt-2">扫描中...</div>
+
+                            <!-- Performance panel (polled) -->
+                            <div class="mt-4" :id="'perf-' + m.model_name"
+                                 hx-get="''" hx-trigger="none" hx-target="this">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+        <div x-show="models.length === 0" class="text-gray-400 text-sm text-center py-8">
+            暂无可用模型
+        </div>
+    </div>
+
+    <!-- Scan results area -->
+    <div id="scan-results-area" class="mt-6"></div>
+
+    <!-- Order list area -->
+    <div id="order-list-area" class="mt-6"></div>
+
+    <!-- Buy/Sell Modal -->
+    <div x-show="buyModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center" @click.self="closeBuyModal()">
+        <div class="fixed inset-0 bg-black/40"></div>
+        <div class="relative bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6 z-10">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4" x-text="'确认' + (buyModal.signalType === 'BUY' ? '买入' : '卖出')"></h3>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">股票代码</span>
+                    <span class="font-mono font-semibold" x-text="buyModal.stockCode"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">股票名称</span>
+                    <span x-text="buyModal.stockName"></span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500">最新价格</span>
+                    <div class="flex items-center gap-1">
+                        <span x-show="buyModal.pricePolling" class="text-xs text-gray-400">获取中...</span>
+                        <span class="font-mono font-semibold" :class="buyModal.currentPrice && buyModal.currentPrice !== buyModal.priceInput ? 'text-orange-600' : 'text-gray-700'" x-text="buyModal.currentPrice ? buyModal.currentPrice.toFixed(2) : '-'"></span>
+                        <span x-show="buyModal.deviation !== null" class="text-xs" :class="Math.abs(buyModal.deviation) > 3 ? 'text-red-500' : 'text-gray-400'" x-text="(buyModal.deviation >= 0 ? '+' : '') + buyModal.deviation.toFixed(1) + '%'"></span>
+                        <span x-show="buyModal.dataSource && buyModal.dataSource !== 'miniQMT'" class="text-xs text-orange-400" title="非实时数据">(收盘价)</span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500">下单价格</span>
+                    <div class="flex items-center gap-1">
+                        <input type="number" x-model="buyModal.priceInput" step="0.01"
+                               class="w-28 border rounded px-2 py-1 text-sm text-right font-mono">
+                        <span class="text-xs text-gray-400">元</span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500">数量</span>
+                    <div class="flex items-center gap-1">
+                        <input type="number" x-model="buyModal.quantity" min="100" step="100"
+                               class="w-28 border rounded px-2 py-1 text-sm text-right font-mono"
+                               @input="buyModal.quantity = Math.round($el.value / 100) * 100">
+                        <span class="text-xs text-gray-400">股</span>
+                    </div>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">预估金额</span>
+                    <span class="font-mono text-gray-700" x-text="'¥' + formatMoney((buyModal.priceInput || 0) * (buyModal.quantity || 0))"></span>
+                </div>
+                <div class="border-t pt-3 mt-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">当前持仓</span>
+                        <span class="font-mono text-gray-700" x-text="buyModal.position.quantity + ' 股'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">持仓成本</span>
+                        <span class="font-mono text-gray-700" x-text="'¥' + (buyModal.position.avg_cost || 0).toFixed(2)"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-500">持仓市值</span>
+                        <span class="font-mono text-gray-700" x-text="'¥' + formatMoney(buyModal.position.market_value || 0)"></span>
+                    </div>
+                </div>
+            </div>
+            <div x-show="buyModal.error" x-text="buyModal.error" class="text-xs text-red-500 mt-3"></div>
+            <div x-show="buyModal.success" x-text="buyModal.success" class="text-xs text-green-600 mt-3"></div>
+            <div class="flex gap-2 mt-5">
+                <button @click="submitBuyOrder()" :disabled="buyModal.submitting"
+                        class="flex-1 text-sm bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+                    <span x-show="!buyModal.submitting">确认下单</span>
+                    <span x-show="buyModal.submitting">提交中...</span>
+                </button>
+                <button @click="closeBuyModal()"
+                        class="flex-1 text-sm bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300">
+                    取消
+                </button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function tradingPage() {
+    return {
+        models: [],
+        expanded: {},
+        editingParams: {},
+        scanScope: {},
+        scanIndustry: {},
+        scanLoading: {},
+        messages: {},
+        messageType: {},
+        filterExcludeST: {},
+        filterExcludeLoss: {},
+
+        buyModal: {
+            show: false,
+            signalId: null,
+            stockCode: '',
+            stockName: '',
+            modelName: 'ma_cross',
+            price: 0,
+            priceInput: 0,
+            currentPrice: null,
+            deviation: null,
+            dataSource: '',
+            pricePolling: false,
+            signalType: 'BUY',
+            quantity: 100,
+            submitting: false,
+            error: '',
+            success: '',
+            position: { quantity: 0, avg_cost: 0, market_value: 0 },
+            _priceTimer: null,
+        },
+
+        async init() {
+            window._trading = this;
+            await this.loadModels();
+        },
+
+        async loadModels() {
+            try {
+                const resp = await fetch('/api/trading/models');
+                this.models = await resp.json();
+                this.models.forEach(m => {
+                    if (!(m.model_name in this.editingParams)) {
+                        const cfg = m.config;
+                        this.editingParams[m.model_name] = {
+                            short: (cfg && cfg.params && cfg.params.short) || (m.default_params && m.default_params.short) || 5,
+                            long: (cfg && cfg.params && cfg.params.long) || (m.default_params && m.default_params.long) || 20,
+                            position_pct: (cfg && cfg.position_pct) || 100,
+                            time_range: (cfg && cfg.time_range) || '1y',
+                        };
+                    }
+                    if (!(m.model_name in this.scanScope)) {
+                        this.scanScope[m.model_name] = 'watchlist';
+                        this.scanIndustry[m.model_name] = '';
+                        this.scanLoading[m.model_name] = false;
+                        this.messages[m.model_name] = '';
+                        this.messageType[m.model_name] = 'ok';
+                        this.filterExcludeST[m.model_name] = false;
+                        this.filterExcludeLoss[m.model_name] = false;
+                    }
+                });
+            } catch (e) {
+                console.error('Failed to load models', e);
+            }
+        },
+
+        isExpanded(modelName) { return !!this.expanded[modelName]; },
+
+        toggleModel(modelName) {
+            this.expanded[modelName] = !this.expanded[modelName];
+        },
+
+        async saveConfig(modelName) {
+            const p = this.editingParams[modelName];
+            try {
+                const resp = await fetch(`/api/trading/models/${modelName}/config`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        params: { short: parseInt(p.short), long: parseInt(p.long) },
+                        position_pct: parseInt(p.position_pct),
+                        time_range: p.time_range,
+                    }),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    this.messages[modelName] = '配置已保存';
+                    this.messageType[modelName] = 'ok';
+                } else {
+                    this.messages[modelName] = data.error || '保存失败';
+                    this.messageType[modelName] = 'error';
+                }
+            } catch (e) {
+                this.messages[modelName] = '网络错误';
+                this.messageType[modelName] = 'error';
+            }
+        },
+
+        async startModel(modelName) {
+            const p = this.editingParams[modelName];
+            try {
+                const resp = await fetch(`/api/trading/models/${modelName}/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        params: { short: parseInt(p.short), long: parseInt(p.long) },
+                        position_pct: parseInt(p.position_pct),
+                        time_range: p.time_range,
+                    }),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    this.messages[modelName] = '模型已启动';
+                    this.messageType[modelName] = 'ok';
+                    await this.loadModels();
+                } else {
+                    this.messages[modelName] = data.error || '启动失败';
+                    this.messageType[modelName] = 'error';
+                }
+            } catch (e) {
+                this.messages[modelName] = '网络错误';
+                this.messageType[modelName] = 'error';
+            }
+        },
+
+        async stopModel(modelName) {
+            try {
+                const resp = await fetch(`/api/trading/models/${modelName}/stop`, { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    this.messages[modelName] = '模型已停止';
+                    this.messageType[modelName] = 'ok';
+                    await this.loadModels();
+                }
+            } catch (e) {
+                this.messages[modelName] = '网络错误';
+                this.messageType[modelName] = 'error';
+            }
+        },
+
+        async scanSignals(modelName, signalType) {
+            this.scanLoading[modelName] = true;
+            const scope = this.scanScope[modelName];
+            const industry = scope === 'industry' ? this.scanIndustry[modelName] : null;
+            const excludeST = this.filterExcludeST[modelName] || false;
+            const excludeLoss = this.filterExcludeLoss[modelName] || false;
+            try {
+                const resp = await fetch(`/api/trading/models/${modelName}/scan`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'HX-Request': 'true' },
+                    body: JSON.stringify({
+                        signal_type: signalType,
+                        scope,
+                        industry,
+                        exclude_st: excludeST,
+                        exclude_loss: excludeLoss,
+                    }),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    document.getElementById('scan-results-area').innerHTML =
+                        `<div class="bg-white rounded-lg border p-4 text-center text-sm text-red-500">${err.error || '扫描失败'}</div>`;
+                } else {
+                    const html = await resp.text();
+                    document.getElementById('scan-results-area').innerHTML = html;
+                }
+            } catch (e) {
+                console.error('Scan failed', e);
+                document.getElementById('scan-results-area').innerHTML =
+                    '<div class="bg-white rounded-lg border p-4 text-center text-sm text-red-500">扫描请求失败，请检查网络连接</div>';
+            }
+            this.scanLoading[modelName] = false;
+        },
+
+        async openBuyModal(signalId, stockCode, stockName, price, signalType) {
+            const sigPrice = parseFloat(price);
+            this.buyModal.show = true;
+            this.buyModal.signalId = signalId;
+            this.buyModal.stockCode = stockCode;
+            this.buyModal.stockName = stockName;
+            this.buyModal.price = sigPrice;
+            this.buyModal.signalType = signalType;
+            this.buyModal.quantity = 100;
+            this.buyModal.submitting = false;
+            this.buyModal.error = '';
+            this.buyModal.success = '';
+            this.buyModal.position = { quantity: 0, avg_cost: 0, market_value: 0 };
+
+            // Fetch current price and position in parallel
+            this.buyModal.currentPrice = sigPrice;
+            this.buyModal.priceInput = sigPrice;
+            this.buyModal.deviation = 0;
+            this.buyModal.dataSource = '';
+            this.buyModal.pricePolling = false;
+
+            // Determine model name from the scan results (use first running model as default)
+            const runningModel = this.models.find(m => m.is_running);
+            this.buyModal.modelName = runningModel ? runningModel.model_name : 'ma_cross';
+
+            try {
+                const [quoteResp, posResp] = await Promise.all([
+                    fetch(`/api/stocks/${stockCode}/quote`),
+                    fetch(`/api/trading/position?stock_code=${encodeURIComponent(stockCode)}&model_name=${encodeURIComponent(this.buyModal.modelName)}`),
+                ]);
+                if (quoteResp.ok) {
+                    const q = await quoteResp.json();
+                    const latest = q.latest_price;
+                    if (latest && latest > 0) {
+                        this.buyModal.currentPrice = latest;
+                        this.buyModal.priceInput = latest;
+                        this.buyModal.deviation = sigPrice > 0 ? (latest - sigPrice) / sigPrice * 100 : 0;
+                        this.buyModal.dataSource = q.data_source || '';
+                    }
+                }
+                if (posResp.ok) {
+                    this.buyModal.position = await posResp.json();
+                }
+            } catch (e) { /* ignore */ }
+
+            this.startPricePolling();
+        },
+
+        closeBuyModal() {
+            this.stopPricePolling();
+            this.buyModal.show = false;
+            if (this.buyModal.success) {
+                this.buyModal.signalId = null;
+                this.buyModal.success = '';
+                this.buyModal.error = '';
+            }
+        },
+
+        async submitBuyOrder() {
+            this.buyModal.submitting = true;
+            this.buyModal.error = '';
+            this.buyModal.success = '';
+            try {
+                const resp = await fetch(`/api/signals/${this.buyModal.signalId}/confirm`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quantity: this.buyModal.quantity,
+                        price: this.buyModal.priceInput,
+                    }),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    this.stopPricePolling();
+                    this.buyModal.success = `下单成功! QMT订单号: ${data.qmt_order_id}，数量: ${data.quantity}，价格: ${data.price}`;
+                    // Refresh position after order
+                    try {
+                        const posResp = await fetch(`/api/trading/position?stock_code=${encodeURIComponent(this.buyModal.stockCode)}&model_name=${encodeURIComponent(this.buyModal.modelName)}`);
+                        if (posResp.ok) this.buyModal.position = await posResp.json();
+                    } catch (e) { /* ignore */ }
+                    setTimeout(() => {
+                        const row = document.getElementById(`signal-row-${this.buyModal.signalId}`);
+                        if (row) row.remove();
+                    }, 1500);
+                } else {
+                    this.buyModal.error = data.error || '下单失败';
+                }
+            } catch (e) {
+                this.buyModal.error = '网络错误，请重试';
+            }
+            this.buyModal.submitting = false;
+        },
+
+        startPricePolling() {
+            this.stopPricePolling();
+            this.fetchCurrentPrice();
+            this.buyModal._priceTimer = setInterval(() => {
+                this.fetchCurrentPrice();
+            }, 2000);
+        },
+
+        stopPricePolling() {
+            if (this.buyModal._priceTimer) {
+                clearInterval(this.buyModal._priceTimer);
+                this.buyModal._priceTimer = null;
+            }
+        },
+
+        async fetchCurrentPrice() {
+            if (!this.buyModal.stockCode) return;
+            this.buyModal.pricePolling = true;
+            try {
+                const resp = await fetch(`/api/stocks/${this.buyModal.stockCode}/quote`);
+                if (!resp.ok) return;
+                const q = await resp.json();
+                const price = q.latest_price;
+                if (price && price > 0) {
+                    this.buyModal.currentPrice = price;
+                    this.buyModal.deviation = this.buyModal.price > 0
+                        ? (price - this.buyModal.price) / this.buyModal.price * 100
+                        : 0;
+                    this.buyModal.dataSource = q.data_source || '';
+                }
+            } catch (e) {
+                // ignore polling errors
+            }
+            this.buyModal.pricePolling = false;
+        },
+
+        isTradingTime() {
+            const now = new Date();
+            if (now.getDay() === 0 || now.getDay() === 6) return false;
+            const h = now.getHours(), m = now.getMinutes();
+            const t = h * 60 + m;
+            return t >= 9 * 60 + 30 && t <= 15 * 60;
+        },
+
+        formatMoney(v) {
+            return Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        },
+    }
+}
+</script>
 {% endblock %}

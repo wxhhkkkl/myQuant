@@ -297,6 +297,30 @@ def get_stock_list_with_quotes(page=1, per_page=50, sort_by='stock_code',
     }
 
 
+def get_stocks_with_kline(start_date: str, end_date: str) -> list:
+    """Return distinct stock codes with names that have kline data in date range."""
+    rows = db.query("""
+        SELECT DISTINCT stock_code
+        FROM daily_kline
+        WHERE trade_date BETWEEN ? AND ?
+        ORDER BY stock_code
+    """, (start_date, end_date)).fetchall()
+
+    codes = [r[0] for r in rows]
+    if not codes:
+        return []
+
+    with get_db() as conn:
+        placeholders = ','.join(['?' for _ in codes])
+        name_rows = conn.execute(
+            f"SELECT stock_code, stock_name FROM stocks WHERE stock_code IN ({placeholders})",
+            codes
+        ).fetchall()
+    name_map = {r["stock_code"]: r["stock_name"] for r in name_rows}
+
+    return [{"stock_code": c, "stock_name": name_map.get(c, c)} for c in codes]
+
+
 def get_weekly_kline(code: str, start: str, end: str) -> list:
     """Get weekly K-line aggregated from daily_kline."""
     rows = db.query("""
@@ -393,10 +417,50 @@ def run_stock_update():
 def get_quote(code: str) -> dict:
     """Get latest market quote for a stock.
 
-    Tries xtdata first for real-time data, falls back to latest daily_kline.
+    Uses miniQMT xtdata.get_full_tick() for real-time price,
+    falls back to xtdata daily data, then DuckDB daily_kline.
     """
-    # Try xtdata real-time quote
     if HAS_XTDATA:
+        # Step 1: Try get_full_tick for real-time price
+        try:
+            tick_data = xtdata.get_full_tick([code])
+            if tick_data and code in tick_data:
+                tick = tick_data[code]
+                lp = tick.get('lastPrice')
+                if lp is not None and float(lp) > 0:
+                    last_price = float(lp)
+                    pre_close = float(tick.get('lastClose', 0)) if tick.get('lastClose') else None
+                    open_px = float(tick.get('open', 0)) if tick.get('open') else None
+                    high = float(tick.get('high', 0)) if tick.get('high') else None
+                    low = float(tick.get('low', 0)) if tick.get('low') else None
+                    volume = int(tick.get('volume', 0)) if tick.get('volume') else None
+                    amount = float(tick.get('amount', 0)) if tick.get('amount') else None
+
+                    if last_price and pre_close and pre_close != 0:
+                        change_pct = round((last_price - pre_close) / pre_close * 100, 2)
+                        change_amount = round(last_price - pre_close, 2)
+                    else:
+                        change_pct = None
+                        change_amount = None
+
+                    return {
+                        "stock_code": code,
+                        "latest_price": last_price,
+                        "change_pct": change_pct,
+                        "change_amount": change_amount,
+                        "open": open_px,
+                        "high": high,
+                        "low": low,
+                        "pre_close": pre_close,
+                        "volume": volume,
+                        "amount": amount,
+                        "trade_date": tick.get('time', ''),
+                        "data_source": "miniQMT",
+                    }
+        except Exception as e:
+            logger.warning("get_full_tick failed for %s: %s", code, e)
+
+        # Step 2: Fall back to get_market_data
         try:
             data = xtdata.get_market_data(
                 field_list=['open', 'high', 'low', 'lastClose', 'lastPrice',
@@ -407,7 +471,6 @@ def get_quote(code: str) -> dict:
                 count=2
             )
             if data and code in data and len(data[code]) > 0:
-                # xtdata returns dict of DataFrames keyed by field
                 import pandas as pd
                 last_price = float(data['lastPrice'].iloc[-1, 0]) if 'lastPrice' in data else None
                 pre_close = float(data['lastClose'].iloc[-1, 0]) if 'lastClose' in data else None
@@ -438,9 +501,10 @@ def get_quote(code: str) -> dict:
                     "volume": volume,
                     "amount": amount,
                     "trade_date": trade_date,
+                    "data_source": "xtdata_daily",
                 }
         except Exception as e:
-            logger.warning(f"xtdata quote failed for {code}: {e}")
+            logger.warning("xtdata quote failed for %s: %s", code, e)
 
     # Fallback to latest daily_kline
     row = db.query("""
@@ -457,6 +521,7 @@ def get_quote(code: str) -> dict:
             "open": None, "high": None, "low": None,
             "pre_close": None, "volume": None, "amount": None,
             "trade_date": None,
+            "data_source": "none",
         }
 
     pre_row = db.query("""
@@ -486,6 +551,7 @@ def get_quote(code: str) -> dict:
         "volume": row[5],
         "amount": row[6],
         "trade_date": str(row[0]),
+        "data_source": "daily_kline",
     }
 
 

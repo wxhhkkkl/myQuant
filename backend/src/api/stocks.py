@@ -8,6 +8,7 @@ from backend.src.services.data_service import (
     get_valuation, get_news, get_stock_list_with_quotes,
     get_weekly_kline, get_monthly_kline, get_quote,
     analyze_stock_sentiment, get_same_industry_stocks, get_industry_list,
+    get_stocks_with_kline,
 )
 from backend.src.services.ai_screening import call_deepseek
 from backend.src.models.stock import Stock
@@ -35,6 +36,11 @@ async def stock_list(page: int = Query(1, ge=1), per_page: int = Query(50, ge=1,
                                        sort_by=sort_by, sort_order=sort_order,
                                        keyword=keyword, watchlist_only=watchlist_only,
                                        industry=industry)
+
+
+@router.get("/api/stocks/with-kline")
+async def stocks_with_kline(start: str = Query(...), end: str = Query(...)):
+    return get_stocks_with_kline(start, end)
 
 
 @router.get("/stocks", response_class=HTMLResponse)

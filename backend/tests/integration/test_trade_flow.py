@@ -44,6 +44,7 @@ class TestTradeFlow:
 
     def test_full_signal_lifecycle(self, client):
         """Create a signal, confirm it, then create an order."""
+        from unittest.mock import MagicMock, patch
         from backend.src.models.trade_signal import TradeSignal
 
         TradeSignal.create_table()
@@ -55,9 +56,13 @@ class TestTradeFlow:
             signal_reason="Integration test signal",
         )
 
-        # Confirm the signal
-        resp = client.post(f"/api/signals/{sig_id}/confirm")
-        assert resp.status_code == 200
+        mock_connector = MagicMock()
+        mock_connector.is_connected.return_value = True
+        mock_connector.submit_order.return_value = 99999
+
+        with patch("backend.src.services.trade_service.get_connector", return_value=mock_connector):
+            resp = client.post(f"/api/signals/{sig_id}/confirm")
+            assert resp.status_code == 200
 
         # Create order from the confirmed signal
         resp2 = client.post("/api/orders", json={
